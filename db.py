@@ -1,7 +1,11 @@
-import sqlite3, random, json, time
+import sqlite3, random, json, time, os
 import pathlib
 
-DB = pathlib.Path(__file__).parent / "shadowplay.db"
+# On Vercel serverless, root directory is read-only; use /tmp for SQLite
+if os.getenv("VERCEL"):
+    DB = pathlib.Path("/tmp/shadowplay.db")
+else:
+    DB = pathlib.Path(__file__).parent / "shadowplay.db"
 
 def conn():
     c = sqlite3.connect(DB)
