@@ -12,8 +12,8 @@
   <b>A shadow-mode agentic pipeline that transforms chaotic advertiser briefs into verified, attention-optimized media plans — without executing a single dollar until approved by a human.</b>
 </p>
 
-Crafted by **[Gaurav Jain](https://github.com/gauravjain0377)** · [Portfolio & Projects](https://github.com/gauravjain0377/portfolio)  
-*Built as a prototype for the **iion AI Engineering Intern (Agentic Workflows)** role.*
+Crafted by **[Gaurav Jain](https://gauravjain.vercel.app)**
+*Built as a prototype for the **iion SDE/AI Engineering Intern** role.*
 
 </div>
 
@@ -258,12 +258,3 @@ If scaling this prototype into iion's live `immersiion` and `fusiion` platforms:
 | **Alerting** | In-app notification | Slack / Microsoft Teams webhook pinging the on-duty AdOps team |
 
 ---
-
-## Author & Attribution
-
-Developed with passion by **[Gaurav Jain](https://github.com/gauravjain0377)**.  
-- GitHub: [@gauravjain0377](https://github.com/gauravjain0377)  
-- Portfolio: [gauravjain0377/portfolio](https://github.com/gauravjain0377/portfolio)  
-- Contact: [jaingaurav906@gmail.com](mailto:jaingaurav906@gmail.com)
-
-*All brand names, campaign briefs, and inventory records in this prototype are synthetic and used strictly for technical demonstration.*
