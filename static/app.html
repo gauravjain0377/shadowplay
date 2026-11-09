@@ -1,0 +1,3222 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>ShadowPlay — iion AdOps AI Cockpit</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;600;700&family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+<style>
+/* ── Reset & design tokens ─────────────────────────────────────────── */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --ink:         #050506;
+  --base:        #0b0c0f;
+  --surface:     #111317;
+  --panel:       #1a1d23;
+  --panel-elevated: #22262e;
+  --border:      rgba(255,255,255,0.08);
+  --border-hi:   rgba(255,255,255,0.14);
+  --accent:      #e8c97a;
+  --accent-dim:  rgba(232,201,122,0.15);
+  --text:        #e4e1da;
+  --muted:       #8a8880;
+  --dim:         #3f3d3a;
+  --green:       #4ade80;
+  --amber:       #fbbf24;
+  --red:         #f87171;
+
+  /* Placements */
+  --in-game:     #38bdf8;
+  --around-game: #fbbf24;
+  --away-game:   #4ade80;
+
+  --col-left:    290px;
+  --col-right:   400px;
+  --header-h:    54px;
+}
+
+html, body {
+  height: 100%;
+  background: var(--base);
+  color: var(--text);
+  font-family: Inter, sans-serif;
+  font-size: 14px;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* scrollbars */
+::-webkit-scrollbar { width: 5px; height: 5px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--dim); border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: var(--muted); }
+
+/* focus */
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+/* ── Layout shell ─────────────────────────────────────────────────── */
+#shell {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  overflow: hidden;
+}
+
+/* ── Header ───────────────────────────────────────────────────────── */
+#header {
+  height: var(--header-h);
+  min-height: var(--header-h);
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  padding: 0 20px;
+  gap: 16px;
+  z-index: 100;
+}
+
+#brand {
+  font-family: 'Cormorant Garamond', serif;
+  font-size: 23px;
+  font-weight: 700;
+  color: var(--text);
+  text-decoration: none;
+  letter-spacing: 0.02em;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+#brand span { color: var(--accent); }
+#brand .subtag {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: 0.08em;
+  color: var(--muted);
+  text-transform: uppercase;
+  padding: 2px 6px;
+  background: var(--panel);
+  border-radius: 3px;
+  border: 1px solid var(--border);
+  margin-left: 4px;
+}
+
+#stats-bar {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 20px;
+  font-size: 12px;
+  font-weight: 400;
+  color: var(--muted);
+}
+#stats-bar .stat { display: flex; align-items: center; gap: 5px; }
+#stats-bar .stat-val { font-family: 'JetBrains Mono', monospace; font-size: 12px; font-weight: 500; }
+#stats-bar .stat-val.green { color: var(--green); }
+#stats-bar .stat-val.red   { color: var(--red);   }
+#stats-bar .stat-val.gold  { color: var(--accent); }
+
+#header-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-shrink: 0;
+}
+
+.header-btn {
+  height: 32px;
+  padding: 0 12px;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  color: var(--text);
+  font-family: Inter, sans-serif;
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  transition: all 0.15s;
+}
+.header-btn:hover {
+  background: var(--panel-elevated);
+  border-color: var(--accent);
+  color: var(--accent);
+}
+.header-btn svg { width: 13px; height: 13px; stroke: currentColor; }
+
+#mode-chip {
+  flex-shrink: 0;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  padding: 3px 8px;
+  border-radius: 3px;
+  border: 1px solid var(--border);
+  color: var(--muted);
+}
+#mode-chip.live   { border-color: rgba(74,222,128,0.4); color: var(--green); background: rgba(74,222,128,0.06); }
+#mode-chip.offline{ border-color: rgba(251,191,36,0.4); color: var(--amber); background: rgba(251,191,36,0.06); }
+
+/* ── Columns wrapper ──────────────────────────────────────────────── */
+#columns {
+  flex: 1;
+  display: flex;
+  overflow: hidden;
+}
+
+/* ── Left column ──────────────────────────────────────────────────── */
+#col-left {
+  width: var(--col-left);
+  min-width: var(--col-left);
+  background: var(--surface);
+  border-right: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+#col-left-inner {
+  flex: 1;
+  overflow-y: auto;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.section-label {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--muted);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  margin-bottom: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+/* sample list */
+#samples-list {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.sample-item {
+  padding: 9px 11px;
+  border-radius: 4px;
+  cursor: pointer;
+  border-left: 2px solid transparent;
+  background: transparent;
+  transition: background 0.15s, border-color 0.15s;
+}
+.sample-item:hover { background: var(--panel); }
+.sample-item.active {
+  background: var(--panel);
+  border-left-color: var(--accent);
+}
+.sample-item .s-brand {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.sample-item .s-preview {
+  font-size: 11px;
+  color: var(--muted);
+  margin-top: 2px;
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  line-height: 1.4;
+}
+
+/* brief textarea */
+#brief {
+  width: 100%;
+  min-height: 125px;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  color: var(--text);
+  font-family: Inter, sans-serif;
+  font-size: 13px;
+  line-height: 1.6;
+  padding: 10px 12px;
+  resize: vertical;
+  transition: border-color 0.15s;
+}
+#brief:focus { outline: none; border-color: var(--border-hi); }
+#brief:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+#brief::placeholder { color: var(--dim); }
+
+#char-counter {
+  font-size: 11px;
+  color: var(--dim);
+  text-align: right;
+  margin-top: 4px;
+  font-family: 'JetBrains Mono', monospace;
+}
+#char-counter.warn { color: var(--amber); }
+
+/* stream toggle indicator */
+.stream-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 10px;
+  font-family: 'JetBrains Mono', monospace;
+  color: var(--muted);
+}
+.stream-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--green);
+}
+
+/* run button */
+#run-btn {
+  width: 100%;
+  height: 44px;
+  background: var(--accent);
+  color: var(--ink);
+  border: none;
+  border-radius: 4px;
+  font-family: Inter, sans-serif;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  transition: filter 0.15s, transform 0.05s;
+  flex-shrink: 0;
+}
+#run-btn:hover:not(:disabled) { filter: brightness(1.06); }
+#run-btn:active:not(:disabled) { transform: scale(0.99); }
+#run-btn:disabled { opacity: 0.55; cursor: not-allowed; }
+#run-btn kbd {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 10px;
+  font-weight: 500;
+  background: rgba(0,0,0,0.22);
+  border-radius: 3px;
+  padding: 2px 5px;
+}
+
+/* ── Center column ────────────────────────────────────────────────── */
+#col-center {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background: var(--base);
+}
+
+#col-center-inner {
+  flex: 1;
+  overflow-y: auto;
+  padding: 22px 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 22px;
+}
+
+/* empty state */
+.empty-msg {
+  color: var(--muted);
+  font-size: 14px;
+  text-align: center;
+  padding: 56px 24px;
+  line-height: 1.8;
+}
+
+/* track */
+#track-container {
+  position: relative;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 16px;
+}
+
+#track-heading {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--muted);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  margin-bottom: 14px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+#track-wrapper {
+  position: relative;
+  display: flex;
+  align-items: flex-start;
+  gap: 0;
+}
+
+#track-segments {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  position: relative;
+}
+
+.seg-wrap {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  position: relative;
+}
+
+.seg-connector {
+  flex: 0 0 16px;
+  height: 2px;
+  background: var(--border);
+  margin-top: 15px;
+  transition: background 0.3s;
+}
+.seg-connector.done { background: rgba(74,222,128,0.3); }
+
+.seg {
+  width: 100%;
+  height: 32px;
+  border-radius: 5px;
+  border: 1px solid var(--border);
+  background: var(--panel);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  overflow: hidden;
+  transition: background 0.3s, border-color 0.3s, box-shadow 0.3s;
+}
+
+.seg .seg-name {
+  font-family: Inter, sans-serif;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text);
+  position: relative;
+  z-index: 1;
+}
+
+.seg .retry-badge {
+  position: absolute;
+  top: 2px;
+  right: 4px;
+  font-size: 9px;
+  font-family: 'JetBrains Mono', monospace;
+  color: var(--amber);
+  z-index: 2;
+  font-weight: 600;
+}
+
+/* segment states */
+.seg.state-active {
+  background: rgba(232,201,122,0.1);
+  border-color: var(--accent);
+  box-shadow: 0 0 12px rgba(232,201,122,0.15);
+}
+.seg.state-pass {
+  background: rgba(74,222,128,0.06);
+  border-color: rgba(74,222,128,0.35);
+}
+.seg.state-retry {
+  background: rgba(251,191,36,0.08);
+  border-color: rgba(251,191,36,0.4);
+}
+.seg.state-error {
+  background: rgba(248,113,113,0.08);
+  border-color: rgba(248,113,113,0.4);
+}
+
+.seg-ms {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11px;
+  color: var(--muted);
+  margin-top: 6px;
+  font-variant-numeric: tabular-nums;
+  text-align: center;
+}
+
+/* ghost token */
+#ghost-token {
+  position: absolute;
+  top: 10px;
+  width: 10px;
+  height: 18px;
+  background: var(--accent);
+  opacity: 0.65;
+  border-radius: 5px 5px 3px 3px;
+  pointer-events: none;
+  z-index: 10;
+  display: none;
+  box-shadow: 0 0 8px var(--accent);
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  #ghost-token {
+    transition: left 0.35s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.2s;
+  }
+  .seg.state-active::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(90deg,
+      transparent 0%,
+      rgba(232,201,122,0.18) 50%,
+      transparent 100%);
+    background-size: 200% 100%;
+    animation: shimmer 1.3s linear infinite;
+  }
+  @keyframes shimmer {
+    0%   { background-position: -200% 0; }
+    100% { background-position: 200% 0; }
+  }
+  .seg.ghost-flash { animation: ghost-flash 0.35s ease-out; }
+  @keyframes ghost-flash {
+    0%   { opacity: 1; filter: brightness(1.3); }
+    100% { opacity: 0.6; filter: brightness(1); }
+  }
+
+  .skeleton {
+    background: linear-gradient(90deg,
+      var(--panel) 25%,
+      var(--surface) 50%,
+      var(--panel) 75%);
+    background-size: 400% 100%;
+    animation: skel 1.4s linear infinite;
+    border-radius: 3px;
+  }
+  @keyframes skel {
+    0%   { background-position: 100% 0; }
+    100% { background-position: -100% 0; }
+  }
+}
+
+/* step notes log */
+#step-log-wrap {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 14px;
+}
+#step-log {
+  max-height: 130px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.log-entry {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  font-size: 12px;
+  line-height: 1.4;
+}
+.log-entry .le-step {
+  font-weight: 600;
+  color: var(--text);
+  flex-shrink: 0;
+  min-width: 65px;
+}
+.log-entry .le-ms {
+  color: var(--accent);
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11px;
+  flex-shrink: 0;
+  min-width: 50px;
+}
+.log-entry .le-note {
+  color: var(--muted);
+  word-break: break-word;
+}
+.log-entry.warn .le-note {
+  color: var(--amber);
+}
+
+/* confidence meter */
+#confidence-wrap {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+#confidence-label {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+#confidence-label span:first-child {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--muted);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+#conf-pct {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text);
+}
+#conf-bar-bg {
+  width: 100%;
+  height: 6px;
+  background: var(--border);
+  border-radius: 3px;
+  overflow: hidden;
+}
+#conf-bar-fill {
+  height: 100%;
+  border-radius: 3px;
+  width: 0%;
+  transition: width 0.6s ease, background-color 0.6s ease;
+}
+
+/* rationale */
+#rationale-block {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 14px 16px;
+  font-size: 13px;
+  color: var(--muted);
+  line-height: 1.6;
+}
+#rationale-block strong {
+  color: var(--text);
+  font-weight: 600;
+  display: block;
+  margin-bottom: 6px;
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+/* error state */
+#run-error {
+  background: rgba(248,113,113,0.07);
+  border: 1px solid rgba(248,113,113,0.3);
+  border-radius: 6px;
+  padding: 14px;
+  color: var(--red);
+  font-size: 13px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+#retry-btn {
+  align-self: flex-start;
+  padding: 6px 14px;
+  background: transparent;
+  border: 1px solid var(--red);
+  border-radius: 4px;
+  color: var(--red);
+  font-family: Inter, sans-serif;
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+#retry-btn:hover { background: rgba(248,113,113,0.1); }
+
+/* ── Right column ─────────────────────────────────────────────────── */
+#col-right {
+  width: var(--col-right);
+  min-width: var(--col-right);
+  background: var(--surface);
+  border-left: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+#col-right-inner {
+  flex: 1;
+  overflow-y: auto;
+  padding: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.r-section-heading {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--muted);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  margin-bottom: 8px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+/* ── Feature 3: Clarification Alert Card ──────────────────────────── */
+#clarification-card {
+  background: rgba(251,191,36,0.06);
+  border: 1px solid rgba(251,191,36,0.35);
+  border-radius: 6px;
+  padding: 12px 14px;
+  display: none;
+  flex-direction: column;
+  gap: 8px;
+}
+#clarification-card.visible { display: flex; }
+.cl-title-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--amber);
+}
+.cl-desc {
+  font-size: 12px;
+  color: var(--text);
+  line-height: 1.45;
+}
+.cl-missing-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-top: 2px;
+}
+.cl-missing-tag {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 10px;
+  padding: 1px 6px;
+  background: rgba(251,191,36,0.15);
+  border-radius: 3px;
+  color: var(--amber);
+}
+.cl-action-btn {
+  align-self: flex-start;
+  margin-top: 4px;
+  padding: 6px 12px;
+  background: rgba(251,191,36,0.15);
+  border: 1px solid var(--amber);
+  color: var(--amber);
+  border-radius: 4px;
+  font-family: Inter, sans-serif;
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  transition: all 0.15s;
+}
+.cl-action-btn:hover {
+  background: var(--amber);
+  color: var(--ink);
+}
+
+/* spec kv */
+.spec-box {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 12px 14px;
+}
+.spec-kv {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.kv-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  font-size: 12px;
+}
+.kv-key {
+  color: var(--muted);
+  flex: 0 0 78px;
+  font-weight: 500;
+}
+.kv-val {
+  color: var(--text);
+  font-variant-numeric: tabular-nums;
+  flex: 1;
+}
+.kv-val.amber { color: var(--amber); }
+
+.chip {
+  display: inline-block;
+  padding: 1px 6px;
+  border: 1px solid var(--border-hi);
+  border-radius: 3px;
+  font-size: 11px;
+  color: var(--text);
+  margin: 0 2px;
+}
+.chip-in-game {
+  border-color: rgba(56, 189, 248, 0.4);
+  color: var(--in-game);
+  background: rgba(56, 189, 248, 0.08);
+}
+.chip-around {
+  border-color: rgba(251, 191, 36, 0.4);
+  color: var(--around-game);
+  background: rgba(251, 191, 36, 0.08);
+}
+.chip-away {
+  border-color: rgba(74, 222, 128, 0.4);
+  color: var(--away-game);
+  background: rgba(74, 222, 128, 0.08);
+}
+
+/* ── Feature 2: Attention Telemetry Card ───────────────────────────── */
+#attention-card {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.att-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.att-badge {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 10px;
+  font-weight: 600;
+  padding: 2px 6px;
+  border-radius: 3px;
+  background: rgba(232,201,122,0.12);
+  color: var(--accent);
+  border: 1px solid rgba(232,201,122,0.3);
+}
+
+.att-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+}
+
+.att-metric-box {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  padding: 9px 10px;
+  display: flex;
+  flex-direction: column;
+}
+.att-metric-val {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--text);
+  line-height: 1.2;
+}
+.att-metric-val.gold { color: var(--accent); }
+.att-metric-val.green { color: var(--green); }
+.att-metric-val .sub {
+  font-size: 10px;
+  color: var(--muted);
+  font-weight: 400;
+  margin-left: 1px;
+}
+.att-metric-lbl {
+  font-size: 10px;
+  color: var(--muted);
+  margin-top: 3px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+/* Stacked bar */
+.env-split-section {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.env-split-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 11px;
+  color: var(--muted);
+}
+.env-stacked-bar {
+  height: 10px;
+  background: var(--surface);
+  border-radius: 5px;
+  overflow: hidden;
+  display: flex;
+  border: 1px solid var(--border);
+  width: 100%;
+}
+.env-seg {
+  height: 100%;
+  transition: width 0.5s ease;
+}
+.env-seg.in-game   { background: var(--in-game); }
+.env-seg.around    { background: var(--around-game); }
+.env-seg.away      { background: var(--away-game); }
+
+.env-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  font-size: 11px;
+  color: var(--muted);
+  margin-top: 2px;
+}
+.env-leg-item {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+.env-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+.env-dot.in-game { background: var(--in-game); }
+.env-dot.around  { background: var(--around-game); }
+.env-dot.away    { background: var(--away-game); }
+.env-leg-val {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 10px;
+  color: var(--text);
+  font-weight: 500;
+}
+
+/* media plan table */
+.plan-table-wrap {
+  overflow-x: auto;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--panel);
+}
+.plan-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 11px;
+}
+.plan-table th {
+  font-family: Inter, sans-serif;
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--muted);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  text-align: left;
+  padding: 7px 8px;
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  white-space: nowrap;
+}
+.plan-table td {
+  padding: 6px 8px;
+  border-bottom: 1px solid var(--border);
+  color: var(--text);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.plan-table td.mono {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11px;
+}
+.plan-table tr.totals-row td {
+  font-weight: 600;
+  background: var(--surface);
+  border-top: 1px solid var(--border-hi);
+  border-bottom: none;
+}
+
+/* ── Feature 4: Human-in-the-Loop Refine Bar ──────────────────────── */
+#refine-section {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 12px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.refine-header {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--muted);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+.refine-badge {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 9px;
+  padding: 2px 5px;
+  background: rgba(232,201,122,0.12);
+  color: var(--accent);
+  border-radius: 3px;
+}
+.refine-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+}
+.refine-chip {
+  font-size: 10px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 2px 8px;
+  color: var(--muted);
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.refine-chip:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+.refine-input-row {
+  display: flex;
+  gap: 6px;
+}
+#refine-input {
+  flex: 1;
+  height: 34px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  color: var(--text);
+  font-family: Inter, sans-serif;
+  font-size: 12px;
+  padding: 0 10px;
+  transition: border-color 0.15s;
+}
+#refine-input:focus { outline: none; border-color: var(--border-hi); }
+#refine-input:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+#refine-btn {
+  height: 34px;
+  padding: 0 12px;
+  background: var(--accent);
+  color: var(--ink);
+  border: none;
+  border-radius: 4px;
+  font-family: Inter, sans-serif;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  white-space: nowrap;
+  transition: filter 0.15s;
+}
+#refine-btn:hover:not(:disabled) { filter: brightness(1.08); }
+#refine-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+#refine-status {
+  font-size: 11px;
+  display: none;
+  padding: 4px 6px;
+  border-radius: 3px;
+}
+#refine-status.success { display: block; color: var(--green); background: rgba(74,222,128,0.06); }
+#refine-status.error   { display: block; color: var(--red);   background: rgba(248,113,113,0.06); }
+
+/* checklist */
+.verifier-box {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 12px 14px;
+}
+#checklist {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.check-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+}
+.check-icon {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 13px;
+  flex-shrink: 0;
+  width: 16px;
+  text-align: center;
+}
+.check-icon.ok  { color: var(--green); }
+.check-icon.fail{ color: var(--red);   }
+.check-icon.pend{ color: var(--dim);   }
+
+/* errors / warning */
+.err-block {
+  border-left: 2px solid var(--red);
+  background: var(--panel);
+  padding: 8px 10px;
+  font-size: 12px;
+  color: var(--red);
+  border-radius: 0 3px 3px 0;
+}
+.warn-block {
+  border-left: 2px solid var(--amber);
+  background: var(--panel);
+  padding: 8px 10px;
+  font-size: 12px;
+  color: var(--amber);
+  border-radius: 0 3px 3px 0;
+}
+
+/* verdict controls */
+.verdict-box {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 12px 14px;
+}
+#verdict-controls {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.verdict-btns {
+  display: flex;
+  gap: 8px;
+}
+.verdict-btns button {
+  flex: 1;
+  height: 38px;
+  border-radius: 4px;
+  font-family: Inter, sans-serif;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 12px;
+  transition: filter 0.15s, opacity 0.15s;
+}
+.verdict-btns button:disabled { opacity: 0.4; cursor: not-allowed; }
+
+#approve-btn {
+  background: var(--green);
+  color: var(--ink);
+  border: none;
+}
+#approve-btn:hover:not(:disabled) { filter: brightness(0.92); }
+
+#reject-btn {
+  background: var(--surface);
+  color: var(--text);
+  border: 1px solid var(--border);
+}
+#reject-btn:hover:not(:disabled) { border-color: var(--border-hi); }
+
+.verdict-btns kbd {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 10px;
+  font-weight: 400;
+  background: rgba(0,0,0,0.22);
+  border-radius: 3px;
+  padding: 2px 5px;
+}
+
+#reason-wrap {
+  display: none;
+}
+#reason-wrap.visible { display: flex; flex-direction: column; gap: 6px; }
+
+#reason-label { font-size: 11px; color: var(--muted); }
+
+#reason-input {
+  width: 100%;
+  min-height: 48px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  color: var(--text);
+  font-family: Inter, sans-serif;
+  font-size: 12px;
+  padding: 8px 10px;
+  resize: vertical;
+}
+#reason-input:focus { outline: none; border-color: var(--border-hi); }
+#reason-input:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+#submit-verdict-btn {
+  align-self: flex-end;
+  padding: 6px 14px;
+  background: var(--accent);
+  color: var(--ink);
+  border: none;
+  border-radius: 4px;
+  font-family: Inter, sans-serif;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+}
+#submit-verdict-btn:hover { filter: brightness(1.06); }
+
+/* verdict banner */
+#verdict-banner {
+  border-radius: 4px;
+  padding: 10px 12px;
+  font-size: 12px;
+  font-weight: 500;
+  text-align: center;
+  border: 1px solid transparent;
+  display: none;
+}
+#verdict-banner.approved {
+  display: block;
+  background: rgba(74,222,128,0.1);
+  border-color: rgba(74,222,128,0.3);
+  color: var(--green);
+}
+#verdict-banner.rejected {
+  display: block;
+  background: rgba(248,113,113,0.1);
+  border-color: rgba(248,113,113,0.3);
+  color: var(--red);
+}
+
+/* right empty */
+#right-empty {
+  color: var(--muted);
+  font-size: 14px;
+  text-align: center;
+  padding: 56px 16px;
+}
+
+/* skeleton */
+.skeleton-block {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 8px 0;
+}
+.skel-line {
+  height: 12px;
+  border-radius: 3px;
+}
+.skel-line.w30 { width: 30%; }
+.skel-line.w50 { width: 50%; }
+.skel-line.w70 { width: 70%; }
+.skel-line.w90 { width: 90%; }
+.skel-line.w100{ width: 100%; }
+
+/* ── Keyboard legend ──────────────────────────────────────────────── */
+#kb-legend {
+  height: 28px;
+  min-height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 20px;
+  border-top: 1px solid var(--border);
+  background: var(--surface);
+}
+#kb-legend span {
+  font-size: 11px;
+  color: var(--dim);
+}
+#kb-legend kbd {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 10px;
+  color: var(--muted);
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  padding: 1px 4px;
+  margin-right: 3px;
+}
+
+/* ── Modals & Drawers ─────────────────────────────────────────────── */
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(5,5,6,0.82);
+  backdrop-filter: blur(4px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.2s ease;
+  padding: 16px;
+}
+.modal-backdrop.open {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.modal-dialog {
+  background: var(--surface);
+  border: 1px solid var(--border-hi);
+  border-radius: 8px;
+  box-shadow: 0 24px 48px rgba(0,0,0,0.65);
+  width: 100%;
+  max-height: 88vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  transform: scale(0.97);
+  transition: transform 0.2s ease;
+}
+.modal-backdrop.open .modal-dialog {
+  transform: scale(1);
+}
+
+.modal-header {
+  padding: 14px 20px;
+  background: var(--panel);
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.modal-title-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.modal-title {
+  font-family: 'Cormorant Garamond', serif;
+  font-size: 20px;
+  font-weight: 600;
+  color: var(--text);
+  letter-spacing: 0.01em;
+}
+.modal-close-btn {
+  background: transparent;
+  border: none;
+  color: var(--muted);
+  font-size: 18px;
+  cursor: pointer;
+  padding: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: color 0.15s;
+}
+.modal-close-btn:hover { color: var(--text); }
+
+.modal-body {
+  padding: 20px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.modal-footer {
+  padding: 12px 20px;
+  background: var(--panel);
+  border-top: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+}
+.modal-btn-primary {
+  padding: 7px 16px;
+  background: var(--accent);
+  color: var(--ink);
+  border: none;
+  border-radius: 4px;
+  font-family: Inter, sans-serif;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: filter 0.15s;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.modal-btn-primary:hover { filter: brightness(1.08); }
+.modal-btn-sec {
+  padding: 7px 14px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  color: var(--text);
+  border-radius: 4px;
+  font-family: Inter, sans-serif;
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+.modal-btn-sec:hover { background: var(--panel-elevated); }
+
+/* Email Modal specifics */
+#email-modal .modal-dialog { max-width: 680px; }
+.email-meta-box {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  padding: 10px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.email-field-lbl {
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+.email-subject-text {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 12px;
+  color: var(--accent);
+  word-break: break-all;
+}
+.email-body-preview {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  padding: 14px;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 12px;
+  line-height: 1.6;
+  color: var(--text);
+  white-space: pre-wrap;
+  max-height: 360px;
+  overflow-y: auto;
+}
+
+/* Audit Modal specifics */
+#audit-modal .modal-dialog { max-width: 860px; }
+.audit-metric-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 10px;
+}
+.audit-stat-card {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  padding: 10px 12px;
+  display: flex;
+  flex-direction: column;
+}
+.audit-stat-val {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--text);
+}
+.audit-stat-val.gold { color: var(--accent); }
+.audit-stat-val.green { color: var(--green); }
+.audit-stat-lbl {
+  font-size: 10px;
+  color: var(--muted);
+  margin-top: 4px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.audit-table-wrap {
+  overflow-x: auto;
+  max-height: 280px;
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  background: var(--panel);
+}
+.audit-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+}
+.audit-table th {
+  background: var(--surface);
+  position: sticky;
+  top: 0;
+  padding: 8px 10px;
+  text-align: left;
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--muted);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  border-bottom: 1px solid var(--border);
+  white-space: nowrap;
+  z-index: 2;
+}
+.audit-table td {
+  padding: 8px 10px;
+  border-bottom: 1px solid var(--border);
+  color: var(--text);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.audit-table tr:hover td {
+  background: rgba(255,255,255,0.025);
+}
+.replay-run-btn {
+  padding: 3px 8px;
+  background: var(--surface);
+  border: 1px solid var(--border-hi);
+  border-radius: 3px;
+  color: var(--accent);
+  font-size: 11px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.replay-run-btn:hover {
+  background: var(--accent);
+  color: var(--ink);
+  border-color: var(--accent);
+}
+
+.status-badge {
+  display: inline-block;
+  padding: 1px 6px;
+  border-radius: 3px;
+  font-size: 10px;
+  font-weight: 500;
+}
+.status-badge.approved { background: rgba(74,222,128,0.12); color: var(--green); }
+.status-badge.rejected { background: rgba(248,113,113,0.12); color: var(--red); }
+.status-badge.pending  { background: rgba(255,255,255,0.06); color: var(--muted); }
+
+/* Toast */
+#toast {
+  position: fixed;
+  bottom: 38px;
+  right: 24px;
+  background: var(--panel-elevated);
+  border: 1px solid var(--accent);
+  color: var(--text);
+  padding: 8px 16px;
+  border-radius: 4px;
+  font-size: 12px;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.5);
+  display: none;
+  align-items: center;
+  gap: 8px;
+  z-index: 2000;
+}
+
+/* ── Tablet (≤900px) ──────────────────────────────────────────────── */
+@media (max-width: 900px) {
+  #col-left { display: none; }
+  #tablet-bar {
+    display: flex;
+    flex-direction: column;
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+  }
+  #tablet-toggle {
+    height: 40px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 16px;
+    cursor: pointer;
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--text);
+    background: none;
+    border: none;
+    width: 100%;
+  }
+  #tablet-toggle .t-caret { font-size: 10px; color: var(--muted); transition: transform 0.2s; }
+  #tablet-toggle.open .t-caret { transform: rotate(180deg); }
+  #tablet-panel {
+    display: none;
+    padding: 12px 16px;
+    gap: 12px;
+    flex-direction: column;
+  }
+  #tablet-panel.open { display: flex; }
+}
+
+@media (min-width: 901px) {
+  #tablet-bar { display: none; }
+}
+
+/* ── Mobile (≤640px) ──────────────────────────────────────────────── */
+@media (max-width: 640px) {
+  #columns { flex-direction: column; overflow-y: auto; overflow-x: hidden; }
+  #col-center, #col-right {
+    width: 100%;
+    min-width: 0;
+    overflow: visible;
+    height: auto;
+  }
+  #col-right { border-left: none; border-top: 1px solid var(--border); }
+  #col-center-inner, #col-right-inner { overflow: visible; padding: 16px; }
+  #stats-bar { gap: 10px; font-size: 11px; }
+  #stats-bar .stat-label { display: none; }
+  .att-grid { grid-template-columns: 1fr; }
+}
+</style>
+</head>
+<body>
+<div id="shell">
+
+  <!-- ── Header ───────────────────────────────────────────── -->
+  <header id="header">
+    <a id="brand" href="/" aria-label="ShadowPlay home">
+      <span>Shadow</span>Play
+      <span class="subtag">iion AdOps</span>
+    </a>
+
+    <div id="stats-bar" role="status" aria-label="Operational stats">
+      <div class="stat">
+        <span class="stat-label">Runs</span>
+        <span class="stat-val" id="st-runs">—</span>
+      </div>
+      <div class="stat">
+        <span class="stat-label">Approved</span>
+        <span class="stat-val green" id="st-approved">—</span>
+      </div>
+      <div class="stat">
+        <span class="stat-label">Rejected</span>
+        <span class="stat-val red" id="st-rejected">—</span>
+      </div>
+      <div class="stat">
+        <span class="stat-label">Agreement</span>
+        <span class="stat-val gold" id="st-agreement">—</span>
+      </div>
+    </div>
+
+    <div id="header-actions">
+      <!-- Feature 5: Audit Telemetry Button -->
+      <button id="audit-btn" class="header-btn" aria-label="Open Audit Telemetry">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <line x1="18" y1="20" x2="18" y2="10"></line>
+          <line x1="12" y1="20" x2="12" y2="4"></line>
+          <line x1="6" y1="20" x2="6" y2="14"></line>
+        </svg>
+        Audit Telemetry
+      </button>
+
+      <div id="mode-chip" aria-label="Operational mode">—</div>
+    </div>
+  </header>
+
+  <!-- ── Tablet brief bar ──────────────────────────────────── -->
+  <div id="tablet-bar">
+    <button id="tablet-toggle" aria-expanded="false" aria-controls="tablet-panel">
+      Brief Inbox & Custom Brief
+      <span class="t-caret">▼</span>
+    </button>
+    <div id="tablet-panel" role="region">
+      <div id="tablet-samples"></div>
+      <textarea id="tablet-brief" class="tablet-brief-ta"
+        rows="4" maxlength="4000"
+        placeholder="Or paste a brief here…"
+        style="width:100%;background:var(--panel);border:1px solid var(--border);border-radius:4px;color:var(--text);font-family:Inter,sans-serif;font-size:13px;padding:8px 10px;resize:vertical;"></textarea>
+      <button id="tablet-run-btn" style="width:100%;height:40px;background:var(--accent);color:var(--ink);border:none;border-radius:4px;font-family:Inter,sans-serif;font-size:13px;font-weight:600;cursor:pointer;">Run Ghost Lap (SSE)</button>
+    </div>
+  </div>
+
+  <!-- ── Main columns ──────────────────────────────────────── -->
+  <div id="columns">
+
+    <!-- LEFT: Brief Inbox -->
+    <aside id="col-left" aria-label="Brief inbox">
+      <div id="col-left-inner">
+
+        <section>
+          <div class="section-label">
+            <span>Brief Inbox</span>
+            <span class="stream-pill"><span class="stream-dot"></span> Real-time SSE</span>
+          </div>
+          <div id="samples-list" role="listbox" aria-label="Sample briefs"></div>
+        </section>
+
+        <section>
+          <div class="section-label brief-label" id="brief-label">Or paste a brief</div>
+          <textarea id="brief" rows="6" maxlength="4000"
+            placeholder="Paste advertiser brief here (e.g. brand, regions, budget, formats, flight)..."
+            aria-label="Custom brief"
+            aria-describedby="char-counter"></textarea>
+          <div id="char-counter" aria-live="polite">0 / 4000</div>
+        </section>
+
+        <button id="run-btn" aria-label="Run Ghost Lap (Shift+Enter)">
+          <span>Run Ghost Lap</span>
+          <kbd aria-label="Keyboard shortcut: Shift Enter">⇧↵</kbd>
+        </button>
+
+      </div>
+    </aside>
+
+    <!-- CENTER: Ghost Lap Timeline & Steps -->
+    <main id="col-center" aria-label="Ghost lap timeline">
+      <div id="col-center-inner">
+
+        <!-- Empty state -->
+        <div id="center-empty" class="empty-msg">
+          Select a brief from the inbox or paste your own,<br>then run the ghost lap to watch the AdOps agent synthesize & verify in real time.
+        </div>
+
+        <!-- Track section -->
+        <section id="track-section" style="display:none;">
+          <div id="track-container">
+            <div id="track-heading">
+              <span>Ghost Lap Pipeline Execution</span>
+              <span id="stream-status-badge" style="font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--accent);">STREAMING ACTIVE</span>
+            </div>
+            <div id="track-wrapper">
+              <div id="track-segments" role="list" aria-label="Pipeline steps"></div>
+            </div>
+            <div id="ghost-token" aria-hidden="true"></div>
+          </div>
+        </section>
+
+        <!-- Step log -->
+        <section id="log-section" style="display:none;">
+          <div id="step-log-wrap">
+            <div class="section-label" style="margin-bottom:8px;">Live Telemetry & Step Notes</div>
+            <div id="step-log" role="log" aria-live="polite" aria-label="Step notes"></div>
+          </div>
+        </section>
+
+        <!-- Confidence -->
+        <section id="conf-section" style="display:none;">
+          <div id="confidence-wrap">
+            <div id="confidence-label">
+              <span>Agent Confidence Score</span>
+              <span id="conf-pct">—</span>
+            </div>
+            <div id="conf-bar-bg" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
+              <div id="conf-bar-fill"></div>
+            </div>
+          </div>
+        </section>
+
+        <!-- Rationale -->
+        <section id="rationale-section" style="display:none;">
+          <div id="rationale-block">
+            <strong>AdOps Agent Strategic Rationale</strong>
+            <span id="rationale-text"></span>
+          </div>
+        </section>
+
+        <!-- Run error -->
+        <div id="run-error" style="display:none;">
+          <span id="run-error-msg"></span>
+          <button id="retry-btn">Retry Run</button>
+        </div>
+
+      </div>
+    </main>
+
+    <!-- RIGHT: Results & Telemetry -->
+    <aside id="col-right" aria-label="Results">
+      <div id="col-right-inner">
+
+        <!-- Empty -->
+        <div id="right-empty" class="empty-msg">Media plan, attention telemetry & spec will appear here upon completion.</div>
+
+        <!-- Loading skeleton -->
+        <div id="right-loading" style="display:none;">
+          <div class="skeleton-block">
+            <div class="skel-line skeleton w30"></div>
+            <div class="skel-line skeleton w90"></div>
+            <div class="skel-line skeleton w70"></div>
+            <div class="skel-line skeleton w50"></div>
+            <div class="skel-line skeleton w100"></div>
+            <div class="skel-line skeleton w60" style="width:60%"></div>
+            <div class="skel-line skeleton w80" style="width:80%"></div>
+            <div class="skel-line skeleton w40" style="width:40%"></div>
+            <div class="skel-line skeleton w100"></div>
+          </div>
+        </div>
+
+        <!-- Results container -->
+        <div id="right-results" style="display:none; display:flex; flex-direction:column; gap:16px;">
+
+          <!-- Feature 3: Clarification Email Alert Card -->
+          <div id="clarification-card" role="alert" aria-live="polite">
+            <div class="cl-title-row">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="12" cy="12" r="10"></circle>
+                <line x1="12" y1="8" x2="12" y2="12"></line>
+                <line x1="12" y1="16" x2="12.01" y2="16"></line>
+              </svg>
+              <span>Ambiguity Detected — Agency Clarification Suggested</span>
+            </div>
+            <div class="cl-desc" id="cl-desc-text">
+              Brief has missing parameters or low confidence. An outbound clarification email has been automatically generated for you.
+            </div>
+            <div class="cl-missing-tags" id="cl-missing-tags"></div>
+            <button id="view-email-btn" class="cl-action-btn">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"></path>
+                <polyline points="22,6 12,13 2,6"></polyline>
+              </svg>
+              View & Copy Agency Email
+            </button>
+          </div>
+
+          <!-- Spec -->
+          <section id="spec-section">
+            <div class="r-section-heading">
+              <span>Extracted Spec</span>
+              <span id="spec-status-chip" class="chip">Normalized</span>
+            </div>
+            <div class="spec-box">
+              <div class="spec-kv" id="spec-kv"></div>
+            </div>
+          </section>
+
+          <!-- Feature 2: Attention Guarantee & Environment Mix Telemetry Card -->
+          <section id="attention-section">
+            <div class="r-section-heading">
+              <span>Attention Guarantee & Environment Mix</span>
+              <span class="att-badge">PAS™ v2.4</span>
+            </div>
+            <div id="attention-card">
+              <div class="att-card-header">
+                <span style="font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:0.06em;">Active Attention Economy</span>
+                <span id="att-target-pill" style="font-size:10px;color:var(--green);font-family:'JetBrains Mono',monospace;">✓ Guarantee Validated</span>
+              </div>
+
+              <!-- 3-metric grid -->
+              <div class="att-grid">
+                <div class="att-metric-box">
+                  <div class="att-metric-val gold">
+                    <span id="pas-score-val">—</span><span class="sub">/100</span>
+                  </div>
+                  <div class="att-metric-lbl">Predicted Attention Score (PAS™)</div>
+                </div>
+
+                <div class="att-metric-box">
+                  <div class="att-metric-val green">
+                    <span id="lift-val">—</span>
+                  </div>
+                  <div class="att-metric-lbl">Lift vs 1.4s Display</div>
+                </div>
+
+                <div class="att-metric-box">
+                  <div class="att-metric-val">
+                    <span id="att-hours-val">—</span><span class="sub">hrs</span>
+                  </div>
+                  <div class="att-metric-lbl">Guaranteed Attention</div>
+                </div>
+              </div>
+
+              <!-- Stacked bar -->
+              <div class="env-split-section">
+                <div class="env-split-header">
+                  <span>Environment Mix Split</span>
+                  <span id="env-avg-gaze" style="font-family:'JetBrains Mono',monospace;color:var(--text);font-size:10px;">Avg: —s gaze</span>
+                </div>
+                <div class="env-stacked-bar" id="env-stacked-bar" role="progressbar" aria-label="Environment mix split">
+                  <div class="env-seg in-game" id="env-seg-in" style="width:0%" title="In-Game Intrinsic"></div>
+                  <div class="env-seg around" id="env-seg-around" style="width:0%" title="Around-Game"></div>
+                  <div class="env-seg away" id="env-seg-away" style="width:0%" title="Away-From-Game"></div>
+                </div>
+                <div class="env-legend">
+                  <div class="env-leg-item">
+                    <span class="env-dot in-game"></span>
+                    <span>In-Game:</span>
+                    <span class="env-leg-val" id="env-val-in">0%</span>
+                  </div>
+                  <div class="env-leg-item">
+                    <span class="env-dot around"></span>
+                    <span>Around-Game:</span>
+                    <span class="env-leg-val" id="env-val-around">0%</span>
+                  </div>
+                  <div class="env-leg-item">
+                    <span class="env-dot away"></span>
+                    <span>Away-From-Game:</span>
+                    <span class="env-leg-val" id="env-val-away">0%</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </section>
+
+          <!-- Media plan -->
+          <section id="plan-section">
+            <div class="r-section-heading">
+              <span>Media Plan Allocation</span>
+              <span id="plan-rows-count" style="font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--muted);">0 items</span>
+            </div>
+            <div class="plan-table-wrap">
+              <table class="plan-table" id="plan-table">
+                <thead>
+                  <tr>
+                    <th>Slot ID</th>
+                    <th>Format</th>
+                    <th>Placement</th>
+                    <th>Rgn</th>
+                    <th>Spend</th>
+                    <th>Impr</th>
+                    <th>Att/$1k</th>
+                  </tr>
+                </thead>
+                <tbody id="plan-tbody"></tbody>
+              </table>
+            </div>
+
+            <!-- Feature 4: Human-in-the-Loop Refine Bar -->
+            <div id="refine-section">
+              <div class="refine-header">
+                <span>Refine / Negotiate Plan</span>
+                <span class="refine-badge">HITL</span>
+              </div>
+              <div class="refine-chips">
+                <span class="refine-chip" data-instruction="Add $5,000 budget and focus on US">+ Add $5k for US</span>
+                <span class="refine-chip" data-instruction="Only use playable and rewarded video">Only Playable & Rewarded</span>
+                <span class="refine-chip" data-instruction="Switch region to Netherlands (NL)">Focus on NL</span>
+              </div>
+              <div class="refine-input-row">
+                <input type="text" id="refine-input" placeholder="e.g. Add $5,000 budget and focus on US, or switch to playable..." aria-label="Refine instruction" />
+                <button id="refine-btn">
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <polyline points="23 4 23 10 17 10"></polyline>
+                    <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"></path>
+                  </svg>
+                  <span>Refine Plan</span>
+                </button>
+              </div>
+              <div id="refine-status"></div>
+            </div>
+          </section>
+
+          <!-- Verifier -->
+          <section id="verifier-section">
+            <div class="r-section-heading">Deterministic Verifier</div>
+            <div class="verifier-box">
+              <div id="checklist"></div>
+            </div>
+          </section>
+
+          <!-- Errors / retry -->
+          <div id="errors-section"></div>
+
+          <!-- Verdict -->
+          <section id="verdict-section">
+            <div class="r-section-heading">AdOps Operator Decision</div>
+            <div class="verdict-box">
+              <div id="verdict-controls">
+                <div class="verdict-btns">
+                  <button id="approve-btn" disabled aria-label="Approve (A)">
+                    <span>Approve Schedule</span>
+                    <kbd>A</kbd>
+                  </button>
+                  <button id="reject-btn" disabled aria-label="Reject (R)">
+                    <span>Reject / Revise</span>
+                    <kbd>R</kbd>
+                  </button>
+                </div>
+                <div id="reason-wrap">
+                  <label id="reason-label" for="reason-input">Reason for rejection (optional feedback)</label>
+                  <textarea id="reason-input" rows="2"
+                    placeholder="Enter reason for rejection or override…"
+                    aria-label="Decision reason"></textarea>
+                  <button id="submit-verdict-btn">Submit Decision</button>
+                </div>
+                <div id="verdict-banner" role="status" aria-live="polite"></div>
+              </div>
+            </div>
+          </section>
+
+        </div><!-- /right-results -->
+
+      </div>
+    </aside>
+
+  </div><!-- /columns -->
+
+  <!-- ── Keyboard legend ───────────────────────────────────── -->
+  <footer id="kb-legend" aria-label="Keyboard shortcuts">
+    <span><kbd>⇧↵</kbd> run ghost lap</span>
+    <span><kbd>A</kbd> approve</span>
+    <span><kbd>R</kbd> reject</span>
+    <span><kbd>Esc</kbd> close modal</span>
+  </footer>
+
+  <!-- ── Feature 3: Clarification Email Modal ──────────────── -->
+  <div id="email-modal" class="modal-backdrop" role="dialog" aria-modal="true" aria-labelledby="email-modal-title">
+    <div class="modal-dialog">
+      <div class="modal-header">
+        <div class="modal-title-row">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color:var(--amber)">
+            <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"></path>
+            <polyline points="22,6 12,13 2,6"></polyline>
+          </svg>
+          <h2 id="email-modal-title" class="modal-title">Outbound Agency Clarification Email</h2>
+        </div>
+        <button id="close-email-modal-btn" class="modal-close-btn" aria-label="Close dialog">✕</button>
+      </div>
+      <div class="modal-body">
+        <div class="email-meta-box">
+          <div class="email-field-lbl">Subject Line</div>
+          <div id="modal-email-subject" class="email-subject-text"></div>
+        </div>
+
+        <div>
+          <div class="email-field-lbl" style="margin-bottom:6px;">Drafted Agency Communication</div>
+          <div id="modal-email-body" class="email-body-preview"></div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button id="copy-email-btn" class="modal-btn-primary">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+            <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+          </svg>
+          <span id="copy-email-text">Copy Entire Email to Clipboard</span>
+        </button>
+        <button id="close-email-footer-btn" class="modal-btn-sec">Close</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Feature 5: Audit Telemetry Modal ───────────────────── -->
+  <div id="audit-modal" class="modal-backdrop" role="dialog" aria-modal="true" aria-labelledby="audit-modal-title">
+    <div class="modal-dialog">
+      <div class="modal-header">
+        <div class="modal-title-row">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color:var(--accent)">
+            <line x1="18" y1="20" x2="18" y2="10"></line>
+            <line x1="12" y1="20" x2="12" y2="4"></line>
+            <line x1="6" y1="20" x2="6" y2="14"></line>
+          </svg>
+          <h2 id="audit-modal-title" class="modal-title">Audit Telemetry & Immutable Shadow Log</h2>
+        </div>
+        <button id="close-audit-modal-btn" class="modal-close-btn" aria-label="Close dialog">✕</button>
+      </div>
+      <div class="modal-body">
+
+        <!-- Aggregate stats -->
+        <div class="audit-metric-grid">
+          <div class="audit-stat-card">
+            <div class="audit-stat-val" id="aud-runs">—</div>
+            <div class="audit-stat-lbl">Lifetime Shadow Runs</div>
+          </div>
+          <div class="audit-stat-card">
+            <div class="audit-stat-val gold" id="aud-spend">—</div>
+            <div class="audit-stat-lbl">Cumulative Spend Modeled</div>
+          </div>
+          <div class="audit-stat-card">
+            <div class="audit-stat-val green" id="aud-hours">—</div>
+            <div class="audit-stat-lbl">Guaranteed Attention</div>
+          </div>
+          <div class="audit-stat-card">
+            <div class="audit-stat-val" id="aud-agree">—</div>
+            <div class="audit-stat-lbl">Ops Agreement Rate</div>
+          </div>
+          <div class="audit-stat-card">
+            <div class="audit-stat-val" id="aud-verdicts">—</div>
+            <div class="audit-stat-lbl">Approved / Rejected</div>
+          </div>
+        </div>
+
+        <!-- Top rejection reasons -->
+        <div>
+          <div class="r-section-heading" style="margin-bottom:6px;">Top Rejection Reasons (Human Overrides)</div>
+          <div id="aud-rejection-reasons" style="font-size:12px;color:var(--muted);display:flex;flex-wrap:wrap;gap:8px;">
+            None recorded
+          </div>
+        </div>
+
+        <!-- Last 20 runs table -->
+        <div>
+          <div class="r-section-heading" style="margin-bottom:6px;">Recent Shadow Runs (Last 20)</div>
+          <div class="audit-table-wrap">
+            <table class="audit-table">
+              <thead>
+                <tr>
+                  <th>ID</th>
+                  <th>Time</th>
+                  <th>Advertiser</th>
+                  <th>Spend</th>
+                  <th>Confidence</th>
+                  <th>Status</th>
+                  <th>Action</th>
+                </tr>
+              </thead>
+              <tbody id="audit-tbody">
+                <tr><td colspan="7" style="text-align:center;color:var(--muted);padding:14px;">Loading runs…</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+      </div>
+      <div class="modal-footer">
+        <button id="refresh-audit-btn" class="modal-btn-sec">Refresh Telemetry</button>
+        <button id="close-audit-footer-btn" class="modal-btn-sec">Close</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast notification -->
+  <div id="toast" role="status" aria-live="polite"></div>
+
+</div><!-- /shell -->
+
+<script>
+(function () {
+'use strict';
+
+/* ── Helpers ──────────────────────────────────────────────── */
+function esc(s) {
+  const d = document.createElement('div');
+  d.textContent = String(s ?? '');
+  return d.innerHTML;
+}
+
+function $(id) { return document.getElementById(id); }
+
+function fmt_money(n) {
+  return '$' + Number(n || 0).toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
+}
+function fmt_impr(n) {
+  const v = Number(n || 0);
+  if (v >= 1e6) return (v / 1e6).toFixed(2) + 'M';
+  if (v >= 1e3) return (v / 1e3).toFixed(1) + 'K';
+  return String(v);
+}
+function fmt_att(n) {
+  return Number(n || 0).toLocaleString('en-US', { minimumFractionDigits: 1, maximumFractionDigits: 1 });
+}
+
+function showToast(msg) {
+  const toast = $('toast');
+  toast.textContent = msg;
+  toast.style.display = 'flex';
+  clearTimeout(toast._timer);
+  toast._timer = setTimeout(() => { toast.style.display = 'none'; }, 3000);
+}
+
+/* ── State ────────────────────────────────────────────────── */
+let currentRunId    = null;
+let currentBrief    = '';
+let decidedAlready  = false;
+let pendingDecision = null;   // 'approve' | 'reject'
+let isRunning       = false;
+let isRefining      = false;
+let lastResult      = null;
+let currentClarification = null;
+
+/* ── DOM refs ─────────────────────────────────────────────── */
+const briefEl          = $('brief');
+const charCounter      = $('char-counter');
+const runBtn           = $('run-btn');
+const samplesList      = $('samples-list');
+const trackSeg         = $('track-segments');
+const ghostToken       = $('ghost-token');
+const stepLog          = $('step-log');
+const confPct          = $('conf-pct');
+const confFill         = $('conf-bar-fill');
+const confBar          = $('conf-bar-bg');
+const rationale        = $('rationale-text');
+const approveBtn       = $('approve-btn');
+const rejectBtn        = $('reject-btn');
+const reasonWrap       = $('reason-wrap');
+const reasonInput      = $('reason-input');
+const submitBtn        = $('submit-verdict-btn');
+const verdictBanner    = $('verdict-banner');
+const modeChip         = $('mode-chip');
+const runError         = $('run-error');
+const runErrorMsg      = $('run-error-msg');
+const retryBtn         = $('retry-btn');
+const streamStatusBadge= $('stream-status-badge');
+
+/* Feature refs */
+const clarificationCard= $('clarification-card');
+const clDescText       = $('cl-desc-text');
+const clMissingTags    = $('cl-missing-tags');
+const viewEmailBtn     = $('view-email-btn');
+const emailModal       = $('email-modal');
+const modalEmailSubject= $('modal-email-subject');
+const modalEmailBody   = $('modal-email-body');
+const copyEmailBtn     = $('copy-email-btn');
+const copyEmailText    = $('copy-email-text');
+const closeEmailModalBtn = $('close-email-modal-btn');
+const closeEmailFooterBtn= $('close-email-footer-btn');
+
+const refineSection    = $('refine-section');
+const refineInput      = $('refine-input');
+const refineBtn        = $('refine-btn');
+const refineStatus     = $('refine-status');
+
+const auditBtn         = $('audit-btn');
+const auditModal       = $('audit-modal');
+const closeAuditModalBtn = $('close-audit-modal-btn');
+const closeAuditFooterBtn= $('close-audit-footer-btn');
+const refreshAuditBtn  = $('refresh-audit-btn');
+
+/* tablet refs */
+const tabletToggle     = $('tablet-toggle');
+const tabletPanel      = $('tablet-panel');
+const tabletBrief      = $('tablet-brief');
+const tabletRunBtn     = $('tablet-run-btn');
+const tabletSamples    = $('tablet-samples');
+
+/* ── Stats ────────────────────────────────────────────────── */
+async function fetchStats() {
+  try {
+    const r = await fetch('/api/stats');
+    if (!r.ok) return;
+    const d = await r.json();
+    $('st-runs').textContent     = d.runs      ?? '—';
+    $('st-approved').textContent = d.approved  ?? '—';
+    $('st-rejected').textContent = d.rejected  ?? '—';
+    $('st-agreement').textContent = d.agreement != null
+      ? Math.round(d.agreement * 100) + '%' : '—';
+    const mode = (d.mode || '').toLowerCase();
+    modeChip.textContent = mode.toUpperCase() || '—';
+    modeChip.className = '';
+    if (mode === 'live')    modeChip.classList.add('live');
+    if (mode === 'offline') modeChip.classList.add('offline');
+    return d;
+  } catch (_) {}
+}
+
+/* ── Samples ──────────────────────────────────────────────── */
+async function fetchSamples() {
+  try {
+    const r = await fetch('/api/samples');
+    if (!r.ok) return;
+    const samples = await r.json();
+    renderSamples(samples, samplesList, briefEl);
+    renderSamples(samples, tabletSamples, tabletBrief);
+  } catch (_) {}
+}
+
+function renderSamples(samples, container, targetTextarea) {
+  container.innerHTML = '';
+  if (!Array.isArray(samples) || samples.length === 0) {
+    container.innerHTML = '<div style="color:var(--muted);font-size:12px;padding:8px 0;">No samples available.</div>';
+    return;
+  }
+  samples.forEach((s, idx) => {
+    const item = document.createElement('div');
+    item.className = 'sample-item';
+    item.setAttribute('role', 'option');
+    item.setAttribute('tabindex', '0');
+    item.setAttribute('aria-label', 'Sample brief: ' + (s.name || 'Sample ' + (idx + 1)));
+    const preview = (s.brief || s.text || '').slice(0, 60);
+    item.innerHTML =
+      '<div class="s-brand">' + esc(s.name || 'Sample ' + (idx + 1)) + '</div>' +
+      '<div class="s-preview">' + esc(preview) + (preview.length >= 60 ? '…' : '') + '</div>';
+
+    function selectItem() {
+      container.querySelectorAll('.sample-item').forEach(el => el.classList.remove('active'));
+      item.classList.add('active');
+      targetTextarea.value = s.brief || s.text || '';
+      updateCharCounter(targetTextarea);
+    }
+
+    item.addEventListener('click', selectItem);
+    item.addEventListener('keydown', e => {
+      if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); selectItem(); }
+    });
+    container.appendChild(item);
+  });
+}
+
+/* ── Brief + char counter ─────────────────────────────────── */
+function updateCharCounter(ta) {
+  const len = ta.value.length;
+  if (ta === briefEl) {
+    charCounter.textContent = len + ' / 4000';
+    charCounter.className = len > 3800 ? 'warn' : '';
+  }
+}
+
+briefEl.addEventListener('input', () => updateCharCounter(briefEl));
+tabletBrief.addEventListener('input', () => updateCharCounter(tabletBrief));
+
+/* ── Tablet toggle ────────────────────────────────────────── */
+tabletToggle.addEventListener('click', () => {
+  const open = tabletPanel.classList.toggle('open');
+  tabletToggle.classList.toggle('open', open);
+  tabletToggle.setAttribute('aria-expanded', String(open));
+});
+
+/* ── Track segments ───────────────────────────────────────── */
+const STEP_NAMES = ['Extract', 'Retrieve', 'Plan', 'Verify', 'Log'];
+
+function buildTrackSegments() {
+  trackSeg.innerHTML = '';
+  STEP_NAMES.forEach((name, i) => {
+    const wrap = document.createElement('div');
+    wrap.className = 'seg-wrap';
+    wrap.setAttribute('role', 'listitem');
+
+    const seg = document.createElement('div');
+    seg.className = 'seg';
+    seg.id = 'seg-' + name.toLowerCase();
+    seg.innerHTML = '<span class="seg-name">' + esc(name) + '</span>';
+
+    const msEl = document.createElement('div');
+    msEl.className = 'seg-ms';
+    msEl.id = 'seg-ms-' + name.toLowerCase();
+    msEl.textContent = '—ms';
+
+    wrap.appendChild(seg);
+    wrap.appendChild(msEl);
+    trackSeg.appendChild(wrap);
+
+    if (i < STEP_NAMES.length - 1) {
+      const conn = document.createElement('div');
+      conn.className = 'seg-connector';
+      conn.id = 'conn-' + i;
+      trackSeg.appendChild(conn);
+    }
+  });
+}
+
+function setSegState(name, state, retryCount) {
+  const seg = $('seg-' + name.toLowerCase());
+  if (!seg) return;
+  seg.className = 'seg state-' + state;
+  if (retryCount > 0) {
+    let badge = seg.querySelector('.retry-badge');
+    if (!badge) {
+      badge = document.createElement('span');
+      badge.className = 'retry-badge';
+      seg.appendChild(badge);
+    }
+    badge.textContent = '↺ ' + retryCount;
+  }
+}
+
+function setSegMs(name, ms) {
+  const el = $('seg-ms-' + name.toLowerCase());
+  if (el) el.textContent = ms + 'ms';
+}
+
+function updateConnectorStates(stepIndex) {
+  for (let i = 0; i < STEP_NAMES.length - 1; i++) {
+    const conn = $('conn-' + i);
+    if (conn) {
+      if (i < stepIndex) conn.classList.add('done');
+      else conn.classList.remove('done');
+    }
+  }
+}
+
+/* ── Ghost token ──────────────────────────────────────────── */
+function getSegCenter(name) {
+  const seg = $('seg-' + name.toLowerCase());
+  if (!seg) return 0;
+  const rect = seg.getBoundingClientRect();
+  const parentRect = trackSeg.getBoundingClientRect();
+  return (rect.left - parentRect.left) + rect.width / 2 - 5;
+}
+
+function placeGhost(name, animate) {
+  ghostToken.style.display = 'block';
+  const x = getSegCenter(name);
+  const noMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  if (noMotion) {
+    ghostToken.style.transition = 'none';
+  } else {
+    ghostToken.style.transition = animate ? 'left 0.35s cubic-bezier(0.4,0,0.2,1), opacity 0.2s' : 'none';
+  }
+  ghostToken.style.left = x + 'px';
+}
+
+function flashGhost() {
+  ghostToken.style.opacity = '1';
+  setTimeout(() => { ghostToken.style.opacity = '0.65'; }, 300);
+}
+
+function rewindGhost() {
+  const noMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  if (!noMotion) {
+    ghostToken.style.transition = 'left 0.3s ease-in, opacity 0.2s';
+  }
+  placeGhost('Plan', true);
+}
+
+/* ── Confidence bar ───────────────────────────────────────── */
+function setConfidence(val) {
+  const pct = Math.round((val || 0) * 100);
+  confPct.textContent = pct + '%';
+  confFill.style.width = pct + '%';
+  confBar.setAttribute('aria-valuenow', pct);
+
+  let color;
+  if (pct <= 50) {
+    color = lerpColor('#f87171', '#fbbf24', pct / 50);
+  } else {
+    color = lerpColor('#fbbf24', '#4ade80', (pct - 50) / 50);
+  }
+  confFill.style.backgroundColor = color;
+}
+
+function lerpColor(a, b, t) {
+  const ah = a.replace('#', '');
+  const bh = b.replace('#', '');
+  const ar = parseInt(ah.slice(0,2),16), ag = parseInt(ah.slice(2,4),16), ab = parseInt(ah.slice(4,6),16);
+  const br = parseInt(bh.slice(0,2),16), bg = parseInt(bh.slice(2,4),16), bb = parseInt(bh.slice(4,6),16);
+  const r = Math.round(ar + (br-ar)*t);
+  const g = Math.round(ag + (bg-ag)*t);
+  const bl= Math.round(ab + (bb-ab)*t);
+  return 'rgb(' + r + ',' + g + ',' + bl + ')';
+}
+
+/* ── Feature 2: Render Attention Telemetry ────────────────── */
+function renderAttentionTelemetry(totals) {
+  if (!totals) return;
+
+  // PAS score
+  const pas = totals.pas_score ?? Math.round(((totals.avg_attention_secs || 5.0) / 12.0) * 100);
+  $('pas-score-val').textContent = esc(pas);
+
+  // Lift vs 1.4s web display benchmark
+  const lift = totals.benchmark_lift_pct ?? Math.round((((totals.avg_attention_secs || 5.0) - 1.4) / 1.4) * 100);
+  $('lift-val').textContent = '+' + esc(lift) + '%';
+
+  // Guaranteed Attention Hours
+  const hrs = totals.attention_hours ?? (totals.attention_secs ? (totals.attention_secs / 3600).toFixed(1) : '—');
+  $('att-hours-val').textContent = esc(hrs);
+
+  // Average gaze
+  const avgGaze = totals.avg_attention_secs != null ? totals.avg_attention_secs + 's' : '—';
+  $('env-avg-gaze').textContent = 'Avg gaze: ' + esc(avgGaze);
+
+  // Environment split
+  const split = totals.environment_split || {};
+  const inGamePct  = Math.max(0, Number(split.in_game ?? 0));
+  const aroundPct  = Math.max(0, Number(split.around_game ?? 0));
+  const awayPct    = Math.max(0, Number(split.away_game ?? 0));
+
+  $('env-seg-in').style.width     = inGamePct + '%';
+  $('env-seg-around').style.width = aroundPct + '%';
+  $('env-seg-away').style.width   = awayPct + '%';
+
+  $('env-val-in').textContent     = inGamePct.toFixed(1) + '%';
+  $('env-val-around').textContent = aroundPct.toFixed(1) + '%';
+  $('env-val-away').textContent   = awayPct.toFixed(1) + '%';
+}
+
+/* ── Feature 3: Clarification Email Card & Modal ─────────── */
+function renderClarificationCard(d) {
+  const email = d.clarification_email;
+  const spec = d.spec || {};
+  const missing = spec.missing || [];
+  const lowConf = (d.confidence != null && d.confidence < 0.75);
+
+  const needed = (email && email.needed) || missing.length > 0 || lowConf;
+  if (!needed) {
+    clarificationCard.classList.remove('visible');
+    currentClarification = null;
+    return;
+  }
+
+  currentClarification = email || {
+    subject: 'Campaign Spec Confirmation: ' + (spec.advertiser || 'Partner') + ' — In-Game Attention Media Plan',
+    body: 'Hi Team,\n\nPlease clarify the missing campaign parameters: ' + missing.join(', ') + ' to finalize the plan.',
+    missing_fields: missing
+  };
+
+  clarificationCard.classList.add('visible');
+  clMissingTags.innerHTML = '';
+
+  if (missing.length > 0) {
+    clDescText.textContent = 'Brief is missing ' + missing.length + ' required field(s). Outbound agency clarification email generated:';
+    missing.forEach(field => {
+      const tag = document.createElement('span');
+      tag.className = 'cl-missing-tag';
+      tag.textContent = '• ' + field;
+      clMissingTags.appendChild(tag);
+    });
+  } else if (lowConf) {
+    clDescText.textContent = 'Agent confidence is below threshold (' + Math.round((d.confidence || 0) * 100) + '%). Review suggested agency confirmation email:';
+  }
+}
+
+viewEmailBtn.addEventListener('click', () => {
+  if (!currentClarification) return;
+  modalEmailSubject.textContent = currentClarification.subject || 'Campaign Spec Clarification';
+  modalEmailBody.textContent    = currentClarification.body || '';
+  copyEmailText.textContent     = 'Copy Entire Email to Clipboard';
+  emailModal.classList.add('open');
+});
+
+closeEmailModalBtn.addEventListener('click', () => emailModal.classList.remove('open'));
+closeEmailFooterBtn.addEventListener('click', () => emailModal.classList.remove('open'));
+
+copyEmailBtn.addEventListener('click', async () => {
+  if (!currentClarification) return;
+  const fullText = 'Subject: ' + (currentClarification.subject || '') + '\n\n' + (currentClarification.body || '');
+  try {
+    await navigator.clipboard.writeText(fullText);
+    copyEmailText.textContent = 'Copied to Clipboard! ✓';
+    showToast('Agency clarification email copied to clipboard');
+    setTimeout(() => { copyEmailText.textContent = 'Copy Entire Email to Clipboard'; }, 2500);
+  } catch (_) {
+    // fallback
+    const ta = document.createElement('textarea');
+    ta.value = fullText;
+    document.body.appendChild(ta);
+    ta.select();
+    document.execCommand('copy');
+    document.body.removeChild(ta);
+    copyEmailText.textContent = 'Copied! ✓';
+    setTimeout(() => { copyEmailText.textContent = 'Copy Entire Email to Clipboard'; }, 2500);
+  }
+});
+
+/* ── Feature 4: Human-in-the-Loop Refine Bar ──────────────── */
+// Quick suggestion chips
+document.querySelectorAll('.refine-chip').forEach(chip => {
+  chip.addEventListener('click', () => {
+    refineInput.value = chip.getAttribute('data-instruction');
+    refineInput.focus();
+  });
+});
+
+async function handleRefine() {
+  if (!currentRunId || isRefining) return;
+  const instruction = refineInput.value.trim();
+  if (!instruction) {
+    refineInput.focus();
+    return;
+  }
+
+  isRefining = true;
+  refineBtn.disabled = true;
+  refineBtn.innerHTML = '<span>Refining…</span>';
+  refineStatus.className = '';
+  refineStatus.style.display = 'none';
+
+  try {
+    const resp = await fetch('/api/refine', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ run_id: currentRunId, instruction })
+    });
+    if (!resp.ok) {
+      const errTxt = await resp.text();
+      throw new Error(errTxt || 'HTTP ' + resp.status);
+    }
+    const d = await resp.json();
+    lastResult = d;
+    currentRunId = d.run_id;
+    decidedAlready = false;
+
+    // Append to live log
+    const entry = document.createElement('div');
+    entry.className = 'log-entry warn';
+    entry.innerHTML =
+      '<span class="le-step">Refine</span>' +
+      '<span class="le-ms">HITL</span>' +
+      '<span class="le-note">Applied operator instruction: ' + esc(instruction) + '</span>';
+    stepLog.appendChild(entry);
+    stepLog.scrollTop = stepLog.scrollHeight;
+
+    // Re-render results
+    renderResults(d);
+    revealConfidence(d);
+    enableVerdictButtons();
+
+    refineStatus.className = 'success';
+    refineStatus.textContent = 'Plan dynamically re-balanced & verified with instruction.';
+    refineInput.value = '';
+    showToast('Plan refined successfully');
+    await fetchStats();
+
+  } catch (err) {
+    refineStatus.className = 'error';
+    refineStatus.textContent = 'Refinement failed: ' + (err.message || err);
+  } finally {
+    isRefining = false;
+    refineBtn.disabled = false;
+    refineBtn.innerHTML =
+      '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">' +
+      '<polyline points="23 4 23 10 17 10"></polyline>' +
+      '<path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"></path>' +
+      '</svg><span>Refine Plan</span>';
+  }
+}
+
+refineBtn.addEventListener('click', handleRefine);
+refineInput.addEventListener('keydown', e => {
+  if (e.key === 'Enter') { e.preventDefault(); handleRefine(); }
+});
+
+/* ── Feature 5: Audit Telemetry Modal ─────────────────────── */
+async function openAuditModal() {
+  auditModal.classList.add('open');
+  await loadAuditData();
+}
+
+async function loadAuditData() {
+  const statsData = await fetchStats();
+  if (statsData) {
+    $('aud-runs').textContent  = statsData.runs ?? '—';
+    $('aud-spend').textContent = fmt_money(statsData.cumulative_spend ?? 0);
+    $('aud-hours').textContent = fmt_att(statsData.cumulative_attention_hours ?? 0) + ' hrs';
+    $('aud-agree').textContent = statsData.agreement != null ? Math.round(statsData.agreement * 100) + '%' : '—';
+    $('aud-verdicts').textContent = (statsData.approved ?? 0) + ' app / ' + (statsData.rejected ?? 0) + ' rej';
+
+    // Top rejection reasons
+    const reasonsContainer = $('aud-rejection-reasons');
+    reasonsContainer.innerHTML = '';
+    const reasons = statsData.top_rejection_reasons || [];
+    if (reasons.length === 0) {
+      reasonsContainer.innerHTML = '<span style="color:var(--green)">100% human agreement — zero rejections recorded</span>';
+    } else {
+      reasons.forEach(r => {
+        const chip = document.createElement('span');
+        chip.className = 'chip';
+        chip.style.borderColor = 'rgba(248,113,113,0.3)';
+        chip.style.color = 'var(--red)';
+        chip.innerHTML = esc(r.reason) + ' <strong>(' + esc(r.count) + ')</strong>';
+        reasonsContainer.appendChild(chip);
+      });
+    }
+  }
+
+  // Load last 20 history runs
+  try {
+    const r = await fetch('/api/history?limit=20');
+    if (!r.ok) return;
+    const history = await r.json();
+    const tbody = $('audit-tbody');
+    tbody.innerHTML = '';
+
+    if (!Array.isArray(history) || history.length === 0) {
+      tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;color:var(--muted);padding:14px;">No shadow runs in database.</td></tr>';
+      return;
+    }
+
+    history.forEach(run => {
+      const tr = document.createElement('tr');
+      const dDate = run.ts ? new Date(run.ts * 1000).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '—';
+      const decClass = run.decision === 'approve' ? 'approved' : run.decision === 'reject' ? 'rejected' : 'pending';
+      const decLabel = run.decision ? run.decision.toUpperCase() : 'PENDING';
+
+      tr.innerHTML =
+        '<td style="font-family:JetBrains Mono,monospace;font-weight:600;">#' + esc(run.id) + '</td>' +
+        '<td style="color:var(--muted);">' + esc(dDate) + '</td>' +
+        '<td style="font-weight:500;">' + esc(run.advertiser || '—') + '</td>' +
+        '<td style="font-family:JetBrains Mono,monospace;">' + esc(fmt_money(run.spend || 0)) + '</td>' +
+        '<td style="font-family:JetBrains Mono,monospace;">' + (run.conf != null ? Math.round(run.conf * 100) + '%' : '—') + '</td>' +
+        '<td><span class="status-badge ' + decClass + '">' + esc(decLabel) + '</span></td>' +
+        '<td><button class="replay-run-btn" data-run-id="' + esc(run.id) + '">Replay</button></td>';
+
+      tbody.appendChild(tr);
+    });
+
+    tbody.querySelectorAll('.replay-run-btn').forEach(btn => {
+      btn.addEventListener('click', async (e) => {
+        const id = Number(e.currentTarget.getAttribute('data-run-id'));
+        if (!id) return;
+        await replayRun(id);
+      });
+    });
+
+  } catch (_) {}
+}
+
+async function replayRun(runId) {
+  try {
+    const resp = await fetch('/api/replay', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ run_id: runId })
+    });
+    if (!resp.ok) throw new Error('Failed to fetch replay data');
+    const d = await resp.json();
+
+    // Close audit modal
+    auditModal.classList.remove('open');
+
+    // Populate brief
+    if (d.spec && d.spec.advertiser) {
+      briefEl.value = 'Advertiser: ' + d.spec.advertiser + ' (Replayed run #' + runId + ')';
+      updateCharCounter(briefEl);
+    }
+
+    // Set state
+    lastResult = d;
+    currentRunId = runId;
+    decidedAlready = !!(d.decision);
+
+    // Reset center
+    $('center-empty').style.display = 'none';
+    $('track-section').style.display = '';
+    $('log-section').style.display = '';
+    buildTrackSegments();
+    STEP_NAMES.forEach(name => {
+      setSegState(name, 'pass');
+      setSegMs(name, 10);
+    });
+    placeGhost('Log', false);
+
+    stepLog.innerHTML =
+      '<div class="log-entry"><span class="le-step">Replay</span><span class="le-ms">#' + esc(runId) + '</span><span class="le-note">Loaded immutable shadow run from SQLite</span></div>';
+
+    // Render results
+    renderResults(d);
+    revealConfidence(d);
+
+    if (d.decision === 'approve') {
+      verdictBanner.style.display = 'block';
+      verdictBanner.className = 'approved';
+      verdictBanner.textContent = 'Approved — logged in shadow record #' + runId;
+      approveBtn.disabled = true;
+      rejectBtn.disabled = true;
+    } else if (d.decision === 'reject') {
+      verdictBanner.style.display = 'block';
+      verdictBanner.className = 'rejected';
+      verdictBanner.textContent = 'Rejected' + (d.reason ? ' — reason: ' + d.reason : '');
+      approveBtn.disabled = true;
+      rejectBtn.disabled = true;
+    } else {
+      verdictBanner.style.display = 'none';
+      enableVerdictButtons();
+    }
+
+    showToast('Replaying shadow run #' + runId);
+
+  } catch (err) {
+    alert('Replay error: ' + (err.message || err));
+  }
+}
+
+auditBtn.addEventListener('click', openAuditModal);
+closeAuditModalBtn.addEventListener('click', () => auditModal.classList.remove('open'));
+closeAuditFooterBtn.addEventListener('click', () => auditModal.classList.remove('open'));
+refreshAuditBtn.addEventListener('click', loadAuditData);
+
+// Close modals on backdrop click
+[emailModal, auditModal].forEach(modal => {
+  modal.addEventListener('click', e => {
+    if (e.target === modal) modal.classList.remove('open');
+  });
+});
+
+/* ── Render right column results ──────────────────────────── */
+function renderResults(d) {
+  $('right-empty').style.display = 'none';
+  $('right-loading').style.display = 'none';
+  $('right-results').style.display = 'flex';
+
+  // Clarification alert
+  renderClarificationCard(d);
+
+  // Spec
+  const spec = d.spec || {};
+  const specKv = $('spec-kv');
+  specKv.innerHTML = '';
+
+  function kvRow(key, val, isAmber) {
+    const row = document.createElement('div');
+    row.className = 'kv-row';
+    row.innerHTML = '<span class="kv-key">' + esc(key) + '</span>' +
+      '<span class="kv-val' + (isAmber ? ' amber' : '') + '">' + val + '</span>';
+    return row;
+  }
+
+  specKv.appendChild(kvRow('Advertiser', esc(spec.advertiser || '—')));
+  if (spec.budget_usd != null) specKv.appendChild(kvRow('Budget', '<span style="font-family:JetBrains Mono,monospace;">' + esc(fmt_money(spec.budget_usd)) + '</span>'));
+  if (spec.flight_days != null) specKv.appendChild(kvRow('Flight', esc(spec.flight_days + ' days')));
+
+  if (Array.isArray(spec.regions) && spec.regions.length) {
+    const chips = spec.regions.map(r => '<span class="chip">' + esc(r) + '</span>').join(' ');
+    specKv.appendChild(kvRow('Regions', chips));
+  }
+  if (Array.isArray(spec.formats_pref) && spec.formats_pref.length) {
+    const chips = spec.formats_pref.map(f => '<span class="chip">' + esc(f) + '</span>').join(' ');
+    specKv.appendChild(kvRow('Formats', chips));
+  }
+  if (Array.isArray(spec.genre_pref) && spec.genre_pref.length) {
+    const chips = spec.genre_pref.map(g => '<span class="chip">' + esc(g) + '</span>').join(' ');
+    specKv.appendChild(kvRow('Genre', chips));
+  }
+  if (Array.isArray(spec.missing) && spec.missing.length) {
+    specKv.appendChild(kvRow('Missing', '<span class="kv-val amber">' + esc(spec.missing.join(', ')) + '</span>', false));
+  }
+
+  // Attention Telemetry Card
+  renderAttentionTelemetry(d.totals);
+
+  // Media plan
+  const tbody = $('plan-tbody');
+  tbody.innerHTML = '';
+  const rows = Array.isArray(d.rows) ? d.rows : [];
+  $('plan-rows-count').textContent = rows.length + ' item(s)';
+
+  rows.forEach(row => {
+    const tr = document.createElement('tr');
+    const pl = (row.placement || '').toLowerCase();
+    let plChipClass = 'chip';
+    if (pl === 'in-game') plChipClass += ' chip-in-game';
+    else if (pl === 'around-game') plChipClass += ' chip-around';
+    else if (pl === 'away-from-game') plChipClass += ' chip-away';
+
+    tr.innerHTML =
+      '<td class="mono" style="font-weight:500;">' + esc(row.id || '—') + '</td>' +
+      '<td>' + esc(row.fmt || '—') + '</td>' +
+      '<td><span class="' + plChipClass + '">' + esc(row.placement || 'in-game') + '</span></td>' +
+      '<td class="mono">' + esc(row.region || '—') + '</td>' +
+      '<td class="mono">' + esc(fmt_money(row.spend || 0)) + '</td>' +
+      '<td class="mono">' + esc(fmt_impr(row.impr || 0)) + '</td>' +
+      '<td class="mono" style="color:var(--accent);">' + esc(fmt_att(row.att_per_dollar || 0)) + '</td>';
+    tbody.appendChild(tr);
+  });
+
+  if (d.totals) {
+    const tr = document.createElement('tr');
+    tr.className = 'totals-row';
+    tr.innerHTML =
+      '<td colspan="4" style="font-weight:600;">Totals / Schedule</td>' +
+      '<td class="mono" style="font-weight:600;">' + esc(fmt_money(d.totals.spend || 0)) + '</td>' +
+      '<td class="mono" style="font-weight:600;">' + esc(fmt_impr(d.totals.impr || 0)) + '</td>' +
+      '<td class="mono" style="color:var(--accent);font-weight:600;">' + esc(fmt_att(d.totals.attention_hours || 0)) + 'h total</td>';
+    tbody.appendChild(tr);
+  }
+
+  // Checklist
+  const checklist = $('checklist');
+  checklist.innerHTML = '';
+  const checks = Array.isArray(d.checks) ? d.checks : [];
+  checks.forEach(c => {
+    const item = document.createElement('div');
+    item.className = 'check-item';
+    const icon = c.ok === true ? '✓' : c.ok === false ? '✗' : '○';
+    const cls  = c.ok === true ? 'ok' : c.ok === false ? 'fail' : 'pend';
+    item.innerHTML =
+      '<span class="check-icon ' + cls + '">' + icon + '</span>' +
+      '<span>' + esc(c.name || '') + '</span>';
+    checklist.appendChild(item);
+  });
+
+  // Errors / retry
+  const errSec = $('errors-section');
+  errSec.innerHTML = '';
+  const errors = Array.isArray(d.errors) ? d.errors : [];
+  errors.forEach(e => {
+    const block = document.createElement('div');
+    block.className = 'err-block';
+    block.textContent = e;
+    errSec.appendChild(block);
+  });
+  if ((d.attempts || 1) > 1) {
+    const warn = document.createElement('div');
+    warn.className = 'warn-block';
+    warn.style.marginTop = errors.length ? '8px' : '0';
+    warn.textContent = 'Agent retried ' + (d.attempts - 1) + ' time(s) — schedule corrected to satisfy floor prices & attention gates.';
+    errSec.appendChild(warn);
+  }
+}
+
+/* ── Confidence + rationale reveal ───────────────────────── */
+function revealConfidence(d) {
+  $('conf-section').style.display = '';
+  $('rationale-section').style.display = '';
+  if (d.confidence != null) setConfidence(d.confidence);
+  rationale.textContent = d.rationale || '';
+}
+
+function enableVerdictButtons() {
+  if (!decidedAlready) {
+    approveBtn.disabled = false;
+    rejectBtn.disabled  = false;
+  }
+}
+
+/* ── Feature 1: Real-time SSE Streaming & POST Fallback ─── */
+function getActiveBrief() {
+  const w = window.innerWidth;
+  if (w <= 900) return tabletBrief.value.trim();
+  return briefEl.value.trim();
+}
+
+async function runLap(briefText) {
+  if (isRunning) return;
+  if (!briefText) {
+    alert('Please select or paste an advertiser brief first.');
+    return;
+  }
+  isRunning = true;
+  currentRunId = null;
+  decidedAlready = false;
+  pendingDecision = null;
+
+  // Reset UI
+  runBtn.disabled = true;
+  runBtn.innerHTML = '<span>Streaming Lap…</span>';
+  tabletRunBtn.disabled = true;
+  tabletRunBtn.textContent = 'Streaming Lap…';
+  approveBtn.disabled = true;
+  rejectBtn.disabled  = true;
+  reasonWrap.classList.remove('visible');
+  verdictBanner.style.display = 'none';
+  verdictBanner.className = '';
+  $('center-empty').style.display = 'none';
+  $('conf-section').style.display = 'none';
+  $('rationale-section').style.display = 'none';
+  runError.style.display = 'none';
+  clarificationCard.classList.remove('visible');
+  refineStatus.style.display = 'none';
+  stepLog.innerHTML = '';
+
+  $('right-empty').style.display = 'none';
+  $('right-results').style.display = 'none';
+  $('right-loading').style.display = '';
+
+  // Setup track
+  $('track-section').style.display = '';
+  $('log-section').style.display = '';
+  streamStatusBadge.textContent = 'SSE STREAM CONNECTING…';
+  buildTrackSegments();
+  ghostToken.style.display = 'block';
+  placeGhost('Extract', false);
+
+  let sseSucceeded = false;
+
+  // Attempt real-time SSE streaming first
+  if (typeof window.EventSource !== 'undefined') {
+    try {
+      await new Promise((resolve, reject) => {
+        const streamUrl = '/api/run/stream?brief=' + encodeURIComponent(briefText);
+        const es = new EventSource(streamUrl);
+        let completed = false;
+
+        es.onopen = () => {
+          streamStatusBadge.textContent = 'REAL-TIME SSE ACTIVE';
+        };
+
+        es.onmessage = (event) => {
+          try {
+            const data = JSON.parse(event.data);
+            handleStreamEvent(data);
+
+            if (data.event === 'complete') {
+              completed = true;
+              sseSucceeded = true;
+              es.close();
+              streamStatusBadge.textContent = 'STREAM COMPLETED ✓';
+              resolve(data.result);
+            }
+          } catch (pe) {
+            console.error('SSE parse error:', pe);
+          }
+        };
+
+        es.onerror = (err) => {
+          es.close();
+          if (!completed) {
+            reject(new Error('SSE connection failed or closed unexpectedly'));
+          }
+        };
+
+        // 60-second safety timeout
+        setTimeout(() => {
+          if (!completed) {
+            es.close();
+            reject(new Error('SSE connection timed out'));
+          }
+        }, 60000);
+      });
+
+    } catch (streamErr) {
+      console.warn('SSE stream failed, falling back to POST /api/run:', streamErr);
+      streamStatusBadge.textContent = 'FALLBACK TO POST /API/RUN';
+    }
+  }
+
+  // Fallback to POST /api/run if SSE stream failed or unavailable
+  if (!sseSucceeded) {
+    try {
+      const resp = await fetch('/api/run', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ brief: briefText })
+      });
+      if (!resp.ok) {
+        const txt = await resp.text();
+        throw new Error('HTTP ' + resp.status + ': ' + txt);
+      }
+      const d = await resp.json();
+      lastResult = d;
+      currentRunId = d.run_id;
+
+      // Animate fallback trace
+      const trace = Array.isArray(d.trace) ? d.trace : [];
+      await new Promise(res => {
+        animateFallbackTrace(trace, d.attempts || 1, () => {
+          onLapComplete(d);
+          res();
+        });
+      });
+
+    } catch (err) {
+      $('right-loading').style.display = 'none';
+      $('right-empty').style.display = '';
+      runError.style.display = '';
+      runErrorMsg.textContent = 'Ghost lap failed. Check server status. Error: ' + (err.message || err);
+    }
+  }
+
+  isRunning = false;
+  runBtn.disabled = false;
+  runBtn.innerHTML = '<span>Run Ghost Lap</span> <kbd aria-label="Keyboard shortcut: Shift Enter">⇧↵</kbd>';
+  tabletRunBtn.disabled = false;
+  tabletRunBtn.textContent = 'Run Ghost Lap (SSE)';
+}
+
+function handleStreamEvent(data) {
+  if (data.event === 'step_start') {
+    const isRetry = data.status === 'retry';
+    setSegState(data.step, isRetry ? 'retry' : 'active', 0);
+    placeGhost(data.step, true);
+    const stepIdx = STEP_NAMES.indexOf(data.step);
+    if (stepIdx >= 0) updateConnectorStates(stepIdx);
+
+  } else if (data.event === 'step_done') {
+    setSegState(data.step, 'pass');
+    setSegMs(data.step, data.ms);
+    flashGhost();
+
+    const entry = document.createElement('div');
+    entry.className = 'log-entry';
+    entry.innerHTML =
+      '<span class="le-step">' + esc(data.step) + '</span>' +
+      '<span class="le-ms">' + esc(data.ms) + 'ms</span>' +
+      '<span class="le-note">' + esc(data.note || '') + '</span>';
+    stepLog.appendChild(entry);
+    stepLog.scrollTop = stepLog.scrollHeight;
+
+  } else if (data.event === 'retry') {
+    rewindGhost();
+    setSegState('Plan', 'retry', 1);
+
+    const entry = document.createElement('div');
+    entry.className = 'log-entry warn';
+    entry.innerHTML =
+      '<span class="le-step">Verify</span>' +
+      '<span class="le-ms">↺ Retry</span>' +
+      '<span class="le-note">Floor CPM / attention gates triggered automated self-healing replan.</span>';
+    stepLog.appendChild(entry);
+    stepLog.scrollTop = stepLog.scrollHeight;
+
+  } else if (data.event === 'complete') {
+    onLapComplete(data.result);
+  }
+}
+
+function onLapComplete(result) {
+  lastResult = result;
+  currentRunId = result.run_id;
+  updateConnectorStates(STEP_NAMES.length);
+
+  $('right-loading').style.display = 'none';
+  renderResults(result);
+  revealConfidence(result);
+  enableVerdictButtons();
+  fetchStats();
+}
+
+function animateFallbackTrace(trace, attempts, onDone) {
+  const totalMs = trace.reduce((s, t) => s + (t.ms || 0), 0) || 1;
+  const TOTAL_ANIM = 2000;
+  const MIN_STEP   = 280;
+
+  let elapsed = 0;
+  trace.forEach((t, i) => {
+    const frac = (t.ms || 1) / totalMs;
+    const duration = Math.max(MIN_STEP, frac * TOTAL_ANIM);
+    const delay = elapsed;
+    elapsed += duration;
+
+    setTimeout(() => {
+      setSegState(t.step, 'active', 0);
+      placeGhost(t.step, true);
+      const idx = STEP_NAMES.indexOf(t.step);
+      if (idx >= 0) updateConnectorStates(idx);
+    }, delay);
+
+    setTimeout(() => {
+      let state = 'pass';
+      if (t.step === 'Plan' && attempts > 1) state = 'retry';
+      setSegState(t.step, state, t.step === 'Plan' ? Math.max(0, attempts - 1) : 0);
+      setSegMs(t.step, t.ms);
+      flashGhost();
+
+      if (t.step === 'Plan' && attempts > 1 && i < trace.length - 1) {
+        rewindGhost();
+      }
+
+      const entry = document.createElement('div');
+      entry.className = 'log-entry';
+      entry.innerHTML =
+        '<span class="le-step">' + esc(t.step) + '</span>' +
+        '<span class="le-ms">' + esc(t.ms) + 'ms</span>' +
+        '<span class="le-note">' + esc(t.note || '') + '</span>';
+      stepLog.appendChild(entry);
+      stepLog.scrollTop = stepLog.scrollHeight;
+    }, delay + duration);
+  });
+
+  setTimeout(() => { onDone(); }, elapsed + 80);
+}
+
+/* ── Decide ───────────────────────────────────────────────── */
+function openReasonBox(decision) {
+  pendingDecision = decision;
+  reasonWrap.classList.add('visible');
+  reasonInput.placeholder = 'Optional feedback / reason for ' + decision + '…';
+  reasonInput.focus();
+}
+
+async function submitDecide() {
+  if (!currentRunId || decidedAlready) return;
+  const decision = pendingDecision;
+  const reason   = reasonInput.value.trim();
+  if (!decision) return;
+
+  approveBtn.disabled = true;
+  rejectBtn.disabled  = true;
+  submitBtn.disabled  = true;
+
+  try {
+    const resp = await fetch('/api/decide', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ run_id: currentRunId, decision, reason })
+    });
+    if (!resp.ok) {
+      const txt = await resp.text();
+      throw new Error('HTTP ' + resp.status + ': ' + txt);
+    }
+    decidedAlready = true;
+    reasonWrap.classList.remove('visible');
+
+    verdictBanner.style.display = 'block';
+    if (decision === 'approve') {
+      verdictBanner.className = 'approved';
+      verdictBanner.textContent = 'Approved — immutable shadow audit #' + currentRunId + ' committed';
+      showToast('Media plan approved');
+    } else {
+      verdictBanner.className = 'rejected';
+      verdictBanner.textContent = 'Rejected' + (reason ? ' — reason: ' + reason : '');
+      showToast('Media plan rejected');
+    }
+
+    await fetchStats();
+  } catch (err) {
+    submitBtn.disabled  = false;
+    approveBtn.disabled = false;
+    rejectBtn.disabled  = false;
+    alert('Error submitting decision: ' + (err.message || err));
+  }
+}
+
+approveBtn.addEventListener('click', () => {
+  if (decidedAlready || approveBtn.disabled) return;
+  pendingDecision = 'approve';
+  openReasonBox('approve');
+});
+
+rejectBtn.addEventListener('click', () => {
+  if (decidedAlready || rejectBtn.disabled) return;
+  pendingDecision = 'reject';
+  openReasonBox('reject');
+});
+
+submitBtn.addEventListener('click', submitDecide);
+reasonInput.addEventListener('keydown', e => {
+  if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); submitDecide(); }
+});
+
+/* ── Retry button ─────────────────────────────────────────── */
+retryBtn.addEventListener('click', () => {
+  const b = getActiveBrief();
+  if (b) runLap(b);
+});
+
+/* ── Run button ───────────────────────────────────────────── */
+function handleRunClick() {
+  const b = getActiveBrief();
+  runLap(b);
+}
+runBtn.addEventListener('click', handleRunClick);
+tabletRunBtn.addEventListener('click', handleRunClick);
+
+/* ── Keyboard shortcuts ───────────────────────────────────── */
+document.addEventListener('keydown', e => {
+  // ESC closes any open modal
+  if (e.key === 'Escape') {
+    if (emailModal.classList.contains('open')) { emailModal.classList.remove('open'); return; }
+    if (auditModal.classList.contains('open')) { auditModal.classList.remove('open'); return; }
+  }
+
+  const tag = document.activeElement && document.activeElement.tagName.toLowerCase();
+  const inText = tag === 'textarea' || tag === 'input';
+
+  if (e.shiftKey && e.key === 'Enter') {
+    e.preventDefault();
+    handleRunClick();
+    return;
+  }
+
+  if (inText) return;
+
+  if ((e.key === 'a' || e.key === 'A') && !e.metaKey && !e.ctrlKey) {
+    if (currentRunId && !decidedAlready && !approveBtn.disabled) {
+      pendingDecision = 'approve';
+      openReasonBox('approve');
+    }
+  }
+  if ((e.key === 'r' || e.key === 'R') && !e.metaKey && !e.ctrlKey) {
+    if (currentRunId && !decidedAlready && !rejectBtn.disabled) {
+      pendingDecision = 'reject';
+      openReasonBox('reject');
+    }
+  }
+});
+
+/* ── Init ─────────────────────────────────────────────────── */
+fetchStats();
+fetchSamples();
+
+})();
+</script>
+</body>
+</html>

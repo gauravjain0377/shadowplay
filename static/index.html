@@ -1,0 +1,1034 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ShadowPlay — iion Ad Ops Agent</title>
+  <meta name="description" content="ShadowPlay reads messy advertiser briefs, structures them, proposes attention-ranked media plans, verifies every number against inventory, and waits for a human to decide. AI ad ops in shadow mode." />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;600&family=Inter:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <style>
+    /* ── Variables ── */
+    :root {
+      --ink:       #050506;
+      --base:      #0b0c0f;
+      --surface:   #111317;
+      --panel:     #1a1d23;
+      --border:    rgba(255,255,255,0.08);
+      --border-hi: rgba(255,255,255,0.14);
+      --accent:    #e8c97a;
+      --text:      #e4e1da;
+      --muted:     #8a8880;
+      --dim:       #3f3d3a;
+      --green:     #4ade80;
+      --amber:     #fbbf24;
+      --red:       #f87171;
+
+      --t-xs:   0.72rem;
+      --t-sm:   0.875rem;
+      --t-base: 1rem;
+      --t-lg:   1.25rem;
+      --t-xl:   1.5rem;
+      --t-2xl:  2rem;
+      --t-3xl:  3rem;
+      --t-4xl:  4.5rem;
+    }
+
+    /* ── Reset ── */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body {
+      background: var(--ink);
+      color: var(--text);
+      font-family: 'Inter', sans-serif;
+      font-weight: 400;
+      font-size: 16px;
+      line-height: 1.6;
+      -webkit-font-smoothing: antialiased;
+    }
+    img, svg { display: block; }
+    a { color: inherit; text-decoration: none; }
+
+    /* ── Focus ── */
+    :focus-visible {
+      outline: 2px solid var(--accent);
+      outline-offset: 2px;
+    }
+
+    /* ── Layout helpers ── */
+    .container {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 0 24px;
+    }
+
+    /* ── NAV ── */
+    nav {
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      height: 56px;
+      background: rgba(11,12,15,0.92);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+    }
+    nav .container {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      width: 100%;
+    }
+    .nav-brand {
+      font-family: 'Cormorant Garamond', serif;
+      font-weight: 600;
+      font-size: 1.35rem;
+      color: var(--text);
+      letter-spacing: 0.01em;
+    }
+    .btn-primary {
+      display: inline-block;
+      background: var(--accent);
+      color: #050506;
+      font-family: 'Inter', sans-serif;
+      font-weight: 600;
+      font-size: var(--t-sm);
+      padding: 10px 20px;
+      border-radius: 4px;
+      border: none;
+      cursor: pointer;
+      line-height: 1;
+      transition: opacity 0.15s;
+    }
+    .btn-primary:hover { opacity: 0.88; }
+
+    /* ── SECTION base ── */
+    section { padding: 96px 0; }
+    section.surface { background: var(--surface); }
+
+    /* ── S1 HERO ── */
+    .hero {
+      padding: 80px 0 96px;
+      background: var(--base);
+    }
+    .hero-grid {
+      display: grid;
+      grid-template-columns: 60fr 40fr;
+      gap: 64px;
+      align-items: center;
+    }
+    .hero-headline {
+      font-family: 'Cormorant Garamond', serif;
+      font-weight: 600;
+      font-size: var(--t-4xl);
+      line-height: 1.12;
+      color: var(--text);
+      margin-bottom: 24px;
+    }
+    .hero-headline span { color: var(--accent); }
+    .hero-sub {
+      font-weight: 300;
+      font-size: 1.1rem;
+      color: var(--muted);
+      max-width: 52ch;
+      margin-bottom: 36px;
+      line-height: 1.65;
+    }
+    .hero-cta {
+      font-family: 'Inter', sans-serif;
+      font-weight: 600;
+      font-size: var(--t-base);
+      padding: 13px 26px;
+      border-radius: 4px;
+    }
+
+    /* Demo terminal */
+    .demo-terminal {
+      background: var(--panel);
+      border: 1px solid var(--border-hi);
+      border-radius: 8px;
+      overflow: hidden;
+      min-height: 240px;
+    }
+    .demo-terminal-bar {
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      padding: 10px 16px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .demo-dot {
+      width: 10px; height: 10px;
+      border-radius: 50%;
+      background: var(--dim);
+    }
+    .demo-terminal-body {
+      padding: 20px;
+      position: relative;
+      min-height: 200px;
+    }
+    .demo-state {
+      position: absolute;
+      inset: 20px;
+      opacity: 0;
+      transition: opacity 0.4s ease;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: var(--t-sm);
+      line-height: 1.6;
+      pointer-events: none;
+    }
+    .demo-state.active { opacity: 1; }
+    .demo-state .label {
+      font-size: var(--t-xs);
+      color: var(--muted);
+      font-family: 'Inter', sans-serif;
+      margin-bottom: 10px;
+      letter-spacing: 0.03em;
+    }
+    .demo-state .email-block {
+      color: var(--text);
+      white-space: pre-wrap;
+      word-break: break-word;
+    }
+    .demo-state .field-row {
+      display: flex;
+      gap: 16px;
+      margin-bottom: 4px;
+    }
+    .demo-state .field-key {
+      color: var(--muted);
+      min-width: 90px;
+    }
+    .demo-state .field-val { color: var(--text); }
+    .demo-state .field-val.hi { color: var(--accent); }
+    .plan-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr auto;
+      gap: 12px;
+      padding: 6px 0;
+      border-bottom: 1px solid var(--border);
+      font-size: var(--t-xs);
+      color: var(--text);
+      align-items: center;
+    }
+    .plan-row.head { color: var(--muted); border-bottom: 1px solid var(--border-hi); }
+    .plan-check { color: var(--green); font-size: 0.85rem; }
+    .extracting {
+      color: var(--amber);
+      font-size: var(--t-sm);
+      font-family: 'JetBrains Mono', monospace;
+      margin-bottom: 14px;
+    }
+
+    /* ── S2 PROBLEM ── */
+    .problem-email {
+      background: var(--panel);
+      border: 1px solid var(--border-hi);
+      border-radius: 8px;
+      overflow: hidden;
+      margin-top: 40px;
+      max-width: 680px;
+    }
+    .email-header {
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      padding: 14px 20px;
+      font-family: 'Inter', sans-serif;
+      font-size: var(--t-sm);
+    }
+    .email-field { color: var(--muted); margin-bottom: 4px; }
+    .email-field:last-child { margin-bottom: 0; }
+    .email-field span { color: var(--text); }
+    .email-body {
+      padding: 20px;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: var(--t-sm);
+      color: var(--text);
+      white-space: pre-wrap;
+      line-height: 1.65;
+    }
+
+    /* ── S3 GHOST LAP ── */
+    .ghost-track-wrapper {
+      margin: 48px 0 40px;
+      overflow-x: auto;
+      padding-bottom: 40px;
+    }
+    .ghost-track {
+      display: flex;
+      align-items: flex-start;
+      min-width: 600px;
+      position: relative;
+      padding-top: 8px;
+    }
+    .track-segment {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      position: relative;
+      flex-shrink: 0;
+    }
+    .segment-pill {
+      background: var(--panel);
+      border: 1px solid var(--border-hi);
+      border-radius: 20px;
+      padding: 8px 18px;
+      font-family: 'Inter', sans-serif;
+      font-size: var(--t-sm);
+      font-weight: 500;
+      color: var(--text);
+      white-space: nowrap;
+      position: relative;
+      z-index: 2;
+    }
+    .segment-pill.has-retry { border-color: var(--amber); }
+    .retry-badge {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.65rem;
+      color: var(--amber);
+      margin-top: 5px;
+    }
+    .segment-time {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: var(--t-xs);
+      color: var(--muted);
+      margin-top: 5px;
+      font-variant-numeric: tabular-nums;
+    }
+    .track-line {
+      flex: 1;
+      height: 1px;
+      background: var(--border-hi);
+      min-width: 24px;
+      margin-top: 20px;
+    }
+
+    /* Ghost token */
+    .ghost-container {
+      position: relative;
+      height: 36px;
+      min-width: 600px;
+    }
+    .ghost-token {
+      position: absolute;
+      width: 13px;
+      height: 13px;
+      background: var(--accent);
+      opacity: 0.42;
+      border-radius: 50% 50% 50% 0;
+      transform: rotate(-45deg);
+      top: 4px;
+      left: 0;
+    }
+
+    @media (prefers-reduced-motion: no-preference) {
+      .ghost-token {
+        transition: left 0.08s linear;
+      }
+    }
+
+    .steps-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 8px;
+    }
+    .steps-table th, .steps-table td {
+      padding: 12px 16px;
+      text-align: left;
+      font-size: var(--t-sm);
+      border-bottom: 1px solid var(--border);
+    }
+    .steps-table th {
+      color: var(--muted);
+      font-weight: 500;
+      font-size: var(--t-xs);
+      letter-spacing: 0.03em;
+      background: var(--surface);
+    }
+    .steps-table td:first-child {
+      font-family: 'JetBrains Mono', monospace;
+      font-weight: 500;
+      color: var(--accent);
+      white-space: nowrap;
+    }
+    .steps-table td:nth-child(2) {
+      font-family: 'JetBrains Mono', monospace;
+      font-variant-numeric: tabular-nums;
+      color: var(--muted);
+      white-space: nowrap;
+    }
+    .steps-table tr:last-child td { border-bottom: none; }
+    .timing-note {
+      margin-top: 20px;
+      font-size: var(--t-sm);
+      color: var(--muted);
+      font-style: italic;
+    }
+
+    /* ── S4 GUARDRAIL ── */
+    .guardrail-panels {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 24px;
+      margin: 40px 0;
+    }
+    .guardrail-panel {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      overflow: hidden;
+    }
+    .guardrail-panel.reject { border-left: 3px solid var(--red); }
+    .guardrail-panel.approve { border-left: 3px solid var(--green); }
+    .guardrail-panel-head {
+      padding: 14px 18px;
+      border-bottom: 1px solid var(--border);
+      font-size: var(--t-sm);
+      font-weight: 500;
+    }
+    .guardrail-panel.reject .guardrail-panel-head { color: var(--red); }
+    .guardrail-panel.approve .guardrail-panel-head { color: var(--green); }
+    .guardrail-panel-body { padding: 18px; }
+    .plan-mini {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: var(--t-xs);
+      border-collapse: collapse;
+      width: 100%;
+      margin-bottom: 14px;
+    }
+    .plan-mini th, .plan-mini td {
+      padding: 6px 8px;
+      text-align: left;
+      border-bottom: 1px solid var(--border);
+    }
+    .plan-mini th { color: var(--muted); font-weight: 400; }
+    .plan-mini td { color: var(--text); }
+    .plan-mini tr:last-child td { border-bottom: none; }
+    .error-msg {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: var(--t-xs);
+      color: var(--red);
+      background: rgba(248,113,113,0.08);
+      border: 1px solid rgba(248,113,113,0.2);
+      border-radius: 4px;
+      padding: 10px 12px;
+      line-height: 1.5;
+    }
+    .ok-msg {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: var(--t-xs);
+      color: var(--green);
+      background: rgba(74,222,128,0.08);
+      border: 1px solid rgba(74,222,128,0.2);
+      border-radius: 4px;
+      padding: 10px 12px;
+    }
+    .guardrail-list {
+      list-style: none;
+      margin-top: 24px;
+    }
+    .guardrail-list li {
+      padding: 7px 0;
+      border-bottom: 1px solid var(--border);
+      font-size: var(--t-sm);
+      color: var(--text);
+    }
+    .guardrail-list li::before {
+      content: "\2022";
+      color: var(--muted);
+      margin-right: 10px;
+    }
+    .guardrail-list li:last-child { border-bottom: none; }
+    .guardrail-label {
+      font-size: var(--t-sm);
+      color: var(--muted);
+      margin-top: 24px;
+      font-style: italic;
+    }
+
+    /* ── S5 WHY SHADOW ── */
+    .data-callout {
+      display: inline-block;
+      margin-top: 28px;
+      background: var(--panel);
+      border: 1px solid var(--border-hi);
+      border-radius: 6px;
+      padding: 18px 28px;
+    }
+    .data-callout .num {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: var(--t-2xl);
+      color: var(--accent);
+      font-variant-numeric: tabular-nums;
+      line-height: 1;
+      margin-bottom: 6px;
+    }
+    .data-callout .num-label {
+      font-size: var(--t-sm);
+      color: var(--muted);
+      max-width: 38ch;
+    }
+
+    /* ── S6 HOW TO RUN ── */
+    .steps-list {
+      list-style: none;
+      counter-reset: step-counter;
+      margin-top: 36px;
+      display: flex;
+      flex-direction: column;
+      gap: 28px;
+    }
+    .steps-list li {
+      counter-increment: step-counter;
+      display: flex;
+      gap: 20px;
+      align-items: flex-start;
+    }
+    .step-num {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: var(--t-sm);
+      color: var(--accent);
+      font-weight: 500;
+      min-width: 20px;
+      padding-top: 2px;
+      flex-shrink: 0;
+    }
+    .step-content { flex: 1; }
+    .step-title {
+      font-size: var(--t-base);
+      font-weight: 500;
+      color: var(--text);
+      margin-bottom: 10px;
+    }
+    .code-block {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 10px 14px;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: var(--t-sm);
+      color: var(--text);
+      white-space: pre;
+      overflow-x: auto;
+      line-height: 1.6;
+    }
+    .run-note {
+      margin-top: 28px;
+      font-size: var(--t-sm);
+      color: var(--muted);
+      max-width: 56ch;
+      line-height: 1.6;
+    }
+
+    /* ── FOOTER ── */
+    footer {
+      padding: 32px 0;
+      border-top: 1px solid var(--border);
+      background: var(--base);
+    }
+    footer .container {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 12px;
+    }
+    .footer-brand {
+      font-family: 'Cormorant Garamond', serif;
+      font-weight: 600;
+      font-size: 1.1rem;
+      color: var(--text);
+    }
+    .footer-note {
+      font-size: var(--t-xs);
+      color: var(--muted);
+    }
+
+    /* ── Typography helpers ── */
+    .section-headline {
+      font-weight: 600;
+      font-size: var(--t-xl);
+      color: var(--text);
+      margin-bottom: 20px;
+      line-height: 1.3;
+    }
+    .section-sub {
+      font-size: var(--t-base);
+      color: var(--muted);
+      max-width: 64ch;
+      line-height: 1.65;
+    }
+    .section-sub + .section-sub { margin-top: 14px; }
+    .section-sub-lead {
+      font-size: var(--t-lg);
+      color: var(--muted);
+      max-width: 60ch;
+      margin-bottom: 8px;
+      line-height: 1.65;
+    }
+
+    /* ── Responsive ── */
+    @media (max-width: 900px) {
+      .hero-grid { grid-template-columns: 1fr; gap: 48px; }
+      .guardrail-panels { grid-template-columns: 1fr; }
+    }
+    @media (max-width: 640px) {
+      .hero-headline { font-size: var(--t-3xl); }
+      section { padding: 64px 0; }
+      .hero { padding: 56px 0 72px; }
+    }
+    @media (max-width: 390px) {
+      .hero-headline { font-size: 2.4rem; }
+      .btn-primary, .hero-cta { padding: 10px 16px; font-size: var(--t-sm); }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- NAV -->
+  <nav>
+    <div class="container">
+      <a href="/" class="nav-brand">ShadowPlay</a>
+      <a href="/app.html" class="btn-primary">Open Cockpit</a>
+    </div>
+  </nav>
+
+  <!-- S1: HERO -->
+  <section class="hero">
+    <div class="container">
+      <div class="hero-grid">
+        <div class="hero-left">
+          <h1 class="hero-headline">
+            An email arrives.<br>
+            A verified plan leaves.<br>
+            <span>Nothing executes itself.</span>
+          </h1>
+          <p class="hero-sub">
+            ShadowPlay reads a messy advertiser brief, structures it, proposes an attention-ranked media plan, checks every number against inventory, and waits for a human to decide. All synthetic data.
+          </p>
+          <a href="/app.html" class="btn-primary hero-cta">Open the Cockpit</a>
+        </div>
+        <div class="hero-right">
+          <div class="demo-terminal">
+            <div class="demo-terminal-bar">
+              <div class="demo-dot"></div>
+              <div class="demo-dot"></div>
+              <div class="demo-dot"></div>
+            </div>
+            <div class="demo-terminal-body" id="demo-body"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- S2: THE PROBLEM -->
+  <section class="surface">
+    <div class="container">
+      <h2 class="section-headline">Ad ops briefs arrive as chaos.</h2>
+      <p class="section-sub">
+        Emails are forwarded three times before anyone acts on them. Budget is "around $10k-ish." Regions are spelled differently in every message — "US," "United States," "USA," "North America." Someone has to map all of this to CPM rates, ad formats, and inventory IDs by hand.
+      </p>
+      <p class="section-sub">
+        When that mapping is wrong, the campaign launches with the wrong budget, the wrong format, or oversold inventory. The mistake costs money and takes a week to unwind. ShadowPlay does the mapping automatically — and refuses to touch anything until a human signs off.
+      </p>
+      <div class="problem-email">
+        <div class="email-header">
+          <div class="email-field">From: <span>jake@speedsneakers.com</span></div>
+          <div class="email-field">To: <span>media@agency.io</span></div>
+          <div class="email-field">Subject: <span>RE: RE: Campaign brief — SpeedSneakers Q3</span></div>
+        </div>
+        <div class="email-body">FWD: FWD: quick one before you head out
+
+hey can we get this moving? client is antsy
+
+---
+
+ok so here's the deal. SpeedSneakers wants to run something for 2 weeks,
+budget is around 8k total (maybe 8500 if we can swing it, don't hold me to that)
+target is USA — well, US. maybe CA too if budget allows
+
+audience should be "racing game people" or action sports, they said either is fine
+formats — whatever performs best, they're not picky. video preferred but display ok
+
+client contact is Marcus but email is on the other chain, I'll forward it
+
+start date TBD, ideally ASAP — they said "2 weeks from whenever"
+
+let me know if you need more, i'm OOO thurs-fri</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- S3: HOW IT WORKS — THE GHOST LAP -->
+  <section>
+    <div class="container">
+      <h2 class="section-headline">Five sectors. One ghost lap.</h2>
+      <p class="section-sub">Every brief runs through the same five steps in sequence. A single token traces the path. If a step fails, it retries — just that segment, not the whole lap.</p>
+
+      <div class="ghost-track-wrapper">
+        <div class="ghost-track" id="ghost-track">
+          <div class="track-segment" data-idx="0">
+            <div class="segment-pill">Extract</div>
+            <div class="segment-time">180 ms</div>
+          </div>
+          <div class="track-line"></div>
+          <div class="track-segment" data-idx="1">
+            <div class="segment-pill">Retrieve</div>
+            <div class="segment-time">45 ms</div>
+          </div>
+          <div class="track-line"></div>
+          <div class="track-segment" data-idx="2">
+            <div class="segment-pill has-retry">Plan</div>
+            <div class="retry-badge">&#8635; retry</div>
+            <div class="segment-time">320 ms</div>
+          </div>
+          <div class="track-line"></div>
+          <div class="track-segment" data-idx="3">
+            <div class="segment-pill">Verify</div>
+            <div class="segment-time">90 ms</div>
+          </div>
+          <div class="track-line"></div>
+          <div class="track-segment" data-idx="4">
+            <div class="segment-pill">Log</div>
+            <div class="segment-time">15 ms</div>
+          </div>
+        </div>
+        <div class="ghost-container" id="ghost-container">
+          <div class="ghost-token" id="ghost-token"></div>
+        </div>
+      </div>
+
+      <table class="steps-table">
+        <thead>
+          <tr>
+            <th>Step</th>
+            <th>Time</th>
+            <th>What it does</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>Extract</td>
+            <td>180 ms</td>
+            <td>Parses the raw email into structured fields: brand, budget, regions, flight dates, and audience.</td>
+          </tr>
+          <tr>
+            <td>Retrieve</td>
+            <td>45 ms</td>
+            <td>Fetches matching inventory from the local catalog based on region and format constraints.</td>
+          </tr>
+          <tr>
+            <td>Plan</td>
+            <td>320 ms</td>
+            <td>Generates a ranked media plan with spend allocation, CPM, and attention quality scores per line item.</td>
+          </tr>
+          <tr>
+            <td>Verify</td>
+            <td>90 ms</td>
+            <td>Runs all 7 deterministic guardrail checks — inventory, budget, impressions, regions, CPM floor, and attention.</td>
+          </tr>
+          <tr>
+            <td>Log</td>
+            <td>15 ms</td>
+            <td>Writes the full run record (input, plan, verification result, timestamp) to a local JSON log.</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <p class="timing-note">These timings are from a real offline run. Live LLM calls take 2–8 s.</p>
+    </div>
+  </section>
+
+  <!-- S4: THE GUARDRAIL MOMENT -->
+  <section class="surface">
+    <div class="container">
+      <h2 class="section-headline">The verifier caught a wrong number. The agent fixed it.</h2>
+      <p class="section-sub-lead">This is the whole point of shadow mode.</p>
+
+      <div class="guardrail-panels">
+        <div class="guardrail-panel reject">
+          <div class="guardrail-panel-head">Attempt 1 — Plan rejected</div>
+          <div class="guardrail-panel-body">
+            <table class="plan-mini">
+              <thead>
+                <tr><th>Inv ID</th><th>Spend</th><th>Impressions</th><th>CPM</th></tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td>INV-AU-003</td>
+                  <td>$6,400</td>
+                  <td>128,000</td>
+                  <td>$50.00</td>
+                </tr>
+              </tbody>
+            </table>
+            <div class="error-msg">FAIL: INV-AU-003 needs 128,000 impressions but only 84,000 available. Reduce spend or swap inventory.</div>
+          </div>
+        </div>
+        <div class="guardrail-panel approve">
+          <div class="guardrail-panel-head">Attempt 2 — Plan approved by verifier</div>
+          <div class="guardrail-panel-body">
+            <table class="plan-mini">
+              <thead>
+                <tr><th>Inv ID</th><th>Spend</th><th>Impressions</th><th>CPM</th></tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td>INV-AU-003</td>
+                  <td>$4,200</td>
+                  <td>84,000</td>
+                  <td>$50.00</td>
+                </tr>
+              </tbody>
+            </table>
+            <div class="ok-msg">&#10003; Impressions fit supply. All 7 checks passed.</div>
+          </div>
+        </div>
+      </div>
+
+      <ul class="guardrail-list">
+        <li>Inventory IDs are real</li>
+        <li>No duplicate IDs in plan</li>
+        <li>Impressions fit available supply</li>
+        <li>Regions match the brief</li>
+        <li>Spend within budget</li>
+        <li>CPM above floor price</li>
+        <li>Attention quality ≥ 5 s on at least one line item</li>
+      </ul>
+      <p class="guardrail-label">All checks are deterministic — no LLM trust.</p>
+    </div>
+  </section>
+
+  <!-- S5: WHY SHADOW MODE -->
+  <section>
+    <div class="container">
+      <h2 class="section-headline">The ghost car never crashes the race.</h2>
+      <p class="section-sub">
+        In a racing game, the ghost car replays a previous lap perfectly — same line, same braking points, exact timing — without touching anything on the track. It cannot interfere. It just runs.
+      </p>
+      <p class="section-sub">
+        ShadowPlay works the same way. It reads the brief, runs the full pipeline, verifies the plan, and stops. No booking is made. No budget is committed. The agent produces a recommendation; a human makes the call.
+      </p>
+      <p class="section-sub">
+        This is how you introduce AI to a live workflow without risk. Every approval and rejection is tracked. The approval rate becomes a signal — when it's high enough and consistent enough, you can consider expanding scope. Until then, the ghost laps keep running.
+      </p>
+      <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap:20px; margin-top:36px;">
+        <div style="background:var(--panel); border:1px solid var(--border); border-radius:8px; padding:22px;">
+          <div style="font-family:'JetBrains Mono',monospace; font-size:var(--t-xs); color:var(--accent); text-transform:uppercase; letter-spacing:0.06em; margin-bottom:8px;">01 · Guaranteed Attention</div>
+          <div style="font-size:var(--t-base); font-weight:600; color:var(--text); margin-bottom:6px;">Beyond Passive MRC Viewability</div>
+          <div style="font-size:var(--t-sm); color:var(--muted); line-height:1.6;">
+            Optimized for cognitive gaze time (5–18s per impression across In-Game Intrinsic, Around-Game, and Rewarded formats) delivering +300% active attention lift over standard web display.
+          </div>
+        </div>
+
+        <div style="background:var(--panel); border:1px solid var(--border); border-radius:8px; padding:22px;">
+          <div style="font-family:'JetBrains Mono',monospace; font-size:var(--t-xs); color:var(--green); text-transform:uppercase; letter-spacing:0.06em; margin-bottom:8px;">02 · Autonomous Self-Healing</div>
+          <div style="font-size:var(--t-base); font-weight:600; color:var(--text); margin-bottom:6px;">Deterministic Guardrails & Repair</div>
+          <div style="font-size:var(--t-sm); color:var(--muted); line-height:1.6;">
+            When supply caps or floor bids are breached, the agent autonomously caps over-allocated lines, transfers surplus spend into verified candidates, and re-proves the plan before human review.
+          </div>
+        </div>
+
+        <div style="background:var(--panel); border:1px solid var(--border); border-radius:8px; padding:22px;">
+          <div style="font-family:'JetBrains Mono',monospace; font-size:var(--t-xs); color:var(--amber); text-transform:uppercase; letter-spacing:0.06em; margin-bottom:8px;">03 · Human-in-the-Loop & Clarifier</div>
+          <div style="font-size:var(--t-base); font-weight:600; color:var(--text); margin-bottom:6px;">Conversational Refine + Agency Emails</div>
+          <div style="font-size:var(--t-sm); color:var(--muted); line-height:1.6;">
+            Ops managers can tune schedules conversationally via natural language commands, while ambiguous briefs auto-generate polished outbound confirmation emails for agencies.
+          </div>
+        </div>
+      </div>
+
+      <div class="data-callout" style="margin-top:32px;">
+        <div class="num">9 / 9</div>
+        <div class="num-label">Test briefs passed the guardrail suite. Full shadow telemetry logged with zero execution risk.</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- S6: HOW TO RUN -->
+  <section class="surface">
+    <div class="container">
+      <h2 class="section-headline">Run it in 60 seconds.</h2>
+      <ol class="steps-list">
+        <li>
+          <div class="step-num">1</div>
+          <div class="step-content">
+            <div class="step-title">Clone the repo</div>
+            <div class="code-block">git clone https://github.com/your-org/shadowplay.git
+cd shadowplay</div>
+          </div>
+        </li>
+        <li>
+          <div class="step-num">2</div>
+          <div class="step-content">
+            <div class="step-title">Install dependencies</div>
+            <div class="code-block">pip install -r requirements.txt</div>
+          </div>
+        </li>
+        <li>
+          <div class="step-num">3</div>
+          <div class="step-content">
+            <div class="step-title">Add an API key — or skip for offline demo mode</div>
+            <div class="code-block"># .env
+GROQ_API_KEY=your_key_here
+# or
+GOOGLE_API_KEY=your_key_here</div>
+          </div>
+        </li>
+        <li>
+          <div class="step-num">4</div>
+          <div class="step-content">
+            <div class="step-title">Start the server</div>
+            <div class="code-block">uvicorn app:app --reload</div>
+          </div>
+        </li>
+      </ol>
+      <p class="run-note">No key? It still runs in offline demo mode. The header shows which mode is active.</p>
+    </div>
+  </section>
+
+  <!-- FOOTER -->
+  <footer>
+    <div class="container" style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px;">
+      <div>
+        <span class="footer-brand">ShadowPlay</span>
+        <span class="footer-note" style="margin-left:14px;">Built for the <strong style="color:var(--text);">iion</strong> AI Engineering Intern (Agentic Workflows) role · All data synthetic</span>
+      </div>
+      <div style="font-size:var(--t-xs); color:var(--muted);">
+        Crafted by <a href="https://github.com/gauravjain0377" target="_blank" rel="noopener noreferrer" style="color:var(--accent); font-weight:600; text-decoration:underline; text-underline-offset:3px;">Gaurav Jain</a> · <a href="https://github.com/gauravjain0377/portfolio" target="_blank" rel="noopener noreferrer" style="color:var(--text); text-decoration:underline; text-underline-offset:3px;">Portfolio & Projects</a>
+      </div>
+    </div>
+  </footer>
+
+  <script>
+    // ── Safety helper ──
+    function esc(s) {
+      const d = document.createElement('div');
+      d.textContent = s;
+      return d.innerHTML;
+    }
+
+    // ─────────────────────────────────────────────────
+    // SECTION 1 — HERO DEMO TERMINAL
+    // Uses setInterval, 3 states × 2000ms = 6s loop
+    // ─────────────────────────────────────────────────
+    const demoBody = document.getElementById('demo-body');
+
+    function buildState0() {
+      const d = document.createElement('div');
+      d.className = 'demo-state active';
+      d.innerHTML =
+        '<div class="label">Incoming brief — raw email</div>' +
+        '<div class="email-block">' +
+          esc('From: marcus@speedsneakers.com\nSubject: FWD: FWD: quick one\n\nSpeedSneakers, 2 weeks, USA, $8,000 total,\nracing game audience if possible, video preferred\n"whatever performs best honestly"\nstart date TBD — ASAP') +
+        '</div>';
+      return d;
+    }
+
+    function buildState1() {
+      const d = document.createElement('div');
+      d.className = 'demo-state';
+      d.innerHTML =
+        '<div class="extracting">Extracting structured fields...</div>' +
+        '<div class="field-row"><span class="field-key">' + esc('Brand') + '</span><span class="field-val">' + esc('SpeedSneakers') + '</span></div>' +
+        '<div class="field-row"><span class="field-key">' + esc('Budget') + '</span><span class="field-val hi">' + esc('$8,000') + '</span></div>' +
+        '<div class="field-row"><span class="field-key">' + esc('Regions') + '</span><span class="field-val">' + esc('US') + '</span></div>' +
+        '<div class="field-row"><span class="field-key">' + esc('Format') + '</span><span class="field-val">' + esc('Video (preferred), Display') + '</span></div>' +
+        '<div class="field-row"><span class="field-key">' + esc('Flight') + '</span><span class="field-val">' + esc('14 days') + '</span></div>' +
+        '<div class="field-row"><span class="field-key">' + esc('Confidence') + '</span><span class="field-val hi">' + esc('0.87') + '</span></div>';
+      return d;
+    }
+
+    function buildState2() {
+      const d = document.createElement('div');
+      d.className = 'demo-state';
+      d.innerHTML =
+        '<div class="label">Media plan — all checks passed</div>' +
+        '<div class="plan-row head"><span>' + esc('Inventory') + '</span><span>' + esc('Spend') + '</span><span>' + esc('CPM') + '</span><span></span></div>' +
+        '<div class="plan-row"><span>' + esc('INV-US-012') + '</span><span>' + esc('$4,800') + '</span><span>' + esc('$42.00') + '</span><span class="plan-check">&#10003;</span></div>' +
+        '<div class="plan-row"><span>' + esc('INV-US-007') + '</span><span>' + esc('$2,100') + '</span><span>' + esc('$38.50') + '</span><span class="plan-check">&#10003;</span></div>' +
+        '<div class="plan-row"><span>' + esc('INV-US-021') + '</span><span>' + esc('$1,100') + '</span><span>' + esc('$35.00') + '</span><span class="plan-check">&#10003;</span></div>';
+      return d;
+    }
+
+    const stateBuilders = [buildState0, buildState1, buildState2];
+    const stateEls = stateBuilders.map(fn => {
+      const el = fn();
+      demoBody.appendChild(el);
+      return el;
+    });
+
+    let currentState = 0;
+
+    setInterval(function() {
+      stateEls[currentState].classList.remove('active');
+      currentState = (currentState + 1) % stateEls.length;
+      stateEls[currentState].classList.add('active');
+    }, 2000);
+
+    // ─────────────────────────────────────────────────
+    // SECTION 3 — GHOST LAP ANIMATION
+    // ─────────────────────────────────────────────────
+    var ghostToken = document.getElementById('ghost-token');
+    var trackEl = document.getElementById('ghost-track');
+    var ghostContainer = document.getElementById('ghost-container');
+
+    function getSegmentCenters() {
+      var trackRect = trackEl.getBoundingClientRect();
+      var pills = trackEl.querySelectorAll('.track-segment');
+      return Array.from(pills).map(function(el) {
+        var r = el.getBoundingClientRect();
+        return (r.left + r.width / 2) - trackRect.left;
+      });
+    }
+
+    function lerp(a, b, t) { return a + (b - a) * t; }
+
+    var LOOP_DURATION = 4000;
+    var animStart = null;
+
+    // Ghost travels: Extract → Retrieve → Plan (fail, rewind) → Plan (ok) → Verify → Log
+    function getGhostX(progress, centers) {
+      var E = centers[0], R = centers[1], P = centers[2], V = centers[3], L = centers[4];
+      if (progress < 0.14) return E;
+      if (progress < 0.27) return lerp(E, R, (progress - 0.14) / 0.13);
+      if (progress < 0.36) return R;
+      if (progress < 0.48) return lerp(R, P, (progress - 0.36) / 0.12);
+      if (progress < 0.55) return P;                                           // dwell, fail
+      if (progress < 0.62) return lerp(P, R, (progress - 0.55) / 0.07);       // rewind
+      if (progress < 0.69) return lerp(R, P, (progress - 0.62) / 0.07);       // retry
+      if (progress < 0.77) return P;                                           // dwell, ok
+      if (progress < 0.87) return lerp(P, V, (progress - 0.77) / 0.10);
+      if (progress < 0.92) return V;
+      if (progress < 0.97) return lerp(V, L, (progress - 0.92) / 0.05);
+      return L;
+    }
+
+    var prefersReduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+    if (!prefersReduced) {
+      function animateGhost(ts) {
+        if (!animStart) animStart = ts;
+        var elapsed = (ts - animStart) % LOOP_DURATION;
+        var progress = elapsed / LOOP_DURATION;
+        var centers = getSegmentCenters();
+        if (centers.length === 5) {
+          ghostToken.style.left = getGhostX(progress, centers) + 'px';
+        }
+        requestAnimationFrame(animateGhost);
+      }
+      requestAnimationFrame(animateGhost);
+    } else {
+      // Static fallback: place ghost at Plan segment
+      window.addEventListener('load', function() {
+        var centers = getSegmentCenters();
+        if (centers.length === 5) ghostToken.style.left = centers[2] + 'px';
+      });
+    }
+  </script>
+</body>
+</html>
