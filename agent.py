@@ -60,11 +60,12 @@ def chain(schema):
     try:
         if os.getenv("GROQ_API_KEY"):
             from langchain_groq import ChatGroq
-            # Primary Groq model
+            # Primary Groq model (with 8s timeout to fit serverless function limits)
             ms.append(
                 ChatGroq(
                     model=os.getenv("GROQ_MODEL", "openai/gpt-oss-120b"),
                     temperature=0,
+                    request_timeout=8,
                 ).with_structured_output(schema)
             )
             # Secondary Groq model (in case primary is rate-limited or retired)
@@ -74,6 +75,7 @@ def chain(schema):
                     ChatGroq(
                         model=fallback_model,
                         temperature=0,
+                        request_timeout=8,
                     ).with_structured_output(schema)
                 )
         if os.getenv("GOOGLE_API_KEY"):
@@ -82,6 +84,7 @@ def chain(schema):
                 ChatGoogleGenerativeAI(
                     model=os.getenv("GEMINI_MODEL", "gemini-2.0-flash"),
                     temperature=0,
+                    request_timeout=8,
                 ).with_structured_output(schema)
             )
     except ImportError:
@@ -97,14 +100,14 @@ def _make_chain_raw(schema):
         if os.getenv("GROQ_API_KEY"):
             from langchain_groq import ChatGroq
             primary = os.getenv("GROQ_MODEL", "openai/gpt-oss-120b")
-            ms.append(ChatGroq(model=primary, temperature=0).with_structured_output(schema, include_raw=True))
+            ms.append(ChatGroq(model=primary, temperature=0, request_timeout=8).with_structured_output(schema, include_raw=True))
             fb = os.getenv("GROQ_MODEL_FALLBACK", "openai/gpt-oss-20b")
             if fb != primary:
-                ms.append(ChatGroq(model=fb, temperature=0).with_structured_output(schema, include_raw=True))
+                ms.append(ChatGroq(model=fb, temperature=0, request_timeout=8).with_structured_output(schema, include_raw=True))
         if os.getenv("GOOGLE_API_KEY"):
             from langchain_google_genai import ChatGoogleGenerativeAI
             ms.append(ChatGoogleGenerativeAI(
-                model=os.getenv("GEMINI_MODEL", "gemini-2.0-flash"), temperature=0
+                model=os.getenv("GEMINI_MODEL", "gemini-2.0-flash"), temperature=0, request_timeout=8
             ).with_structured_output(schema, include_raw=True))
     except ImportError:
         pass

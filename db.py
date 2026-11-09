@@ -7,13 +7,13 @@ if os.getenv("VERCEL"):
 else:
     DB = pathlib.Path(__file__).parent / "shadowplay.db"
 
-def conn():
-    c = sqlite3.connect(DB)
-    c.row_factory = sqlite3.Row
-    return c
+_initialized = False
 
 def init():
-    c = conn()
+    global _initialized
+    DB.parent.mkdir(parents=True, exist_ok=True)
+    c = sqlite3.connect(DB)
+    c.row_factory = sqlite3.Row
     c.executescript("""
     CREATE TABLE IF NOT EXISTS inventory(
         id TEXT PRIMARY KEY,
@@ -64,6 +64,15 @@ def init():
                                rnd.randint(40, 400) * 1000, min_bid))
     c.commit()
     c.close()
+    _initialized = True
+
+def conn():
+    global _initialized
+    if not _initialized or not DB.exists():
+        init()
+    c = sqlite3.connect(DB)
+    c.row_factory = sqlite3.Row
+    return c
 
 def search(regions, fmts=None, genres=None):
     """Return inventory rows ordered by attention/CPM (best quality per dollar first)."""

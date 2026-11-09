@@ -32,18 +32,22 @@ class RefineBody(BaseModel):
 # ── API endpoints ─────────────────────────────────────────────────────────────
 
 @app.get("/api/samples")
+@app.get("/samples")
 def samples():
     return [{"name": s["name"], "brief": s["brief"]} for s in SAMPLES]
 
 @app.get("/api/stats")
+@app.get("/stats")
 def stats():
     return {**db.stats(), "mode": agent.mode()}
 
 @app.post("/api/run")
+@app.post("/run")
 def run_brief(b: BriefBody):
     return agent.run(b.brief)
 
 @app.get("/api/run/stream")
+@app.get("/run/stream")
 def stream_brief(brief: str):
     """Server-Sent Events endpoint to stream real-time pipeline steps."""
     def event_generator():
@@ -52,6 +56,7 @@ def stream_brief(brief: str):
     return StreamingResponse(event_generator(), media_type="text/event-stream")
 
 @app.post("/api/refine")
+@app.post("/refine")
 def refine_plan(b: RefineBody):
     """Human-in-the-Loop refinement of a previous media plan."""
     try:
@@ -62,6 +67,7 @@ def refine_plan(b: RefineBody):
         raise HTTPException(500, f"Refinement error: {str(e)}")
 
 @app.post("/api/decide")
+@app.post("/decide")
 def decide(d: DecisionBody):
     if d.decision not in ("approve", "reject"):
         raise HTTPException(400, "decision must be approve or reject")
@@ -69,11 +75,13 @@ def decide(d: DecisionBody):
     return {"ok": True}
 
 @app.get("/api/history")
+@app.get("/history")
 def history(limit: int = 30):
     """Return the last N shadow runs for the audit tab."""
     return db.history(limit)
 
 @app.post("/api/replay")
+@app.post("/replay")
 def replay(body: ReplayBody):
     """Return a saved run result so the UI can replay the lap without re-running the agent."""
     result = db.get_run(body.run_id)
@@ -82,6 +90,7 @@ def replay(body: ReplayBody):
     return result
 
 @app.get("/api/inventory")
+@app.get("/inventory")
 def inventory(region: str = None, fmt: str = None, genre: str = None):
     """Return inventory rows, optionally filtered."""
     regions = [region] if region else ["AU", "NL", "IN", "US"]
@@ -91,6 +100,7 @@ def inventory(region: str = None, fmt: str = None, genre: str = None):
     return rows
 
 @app.get("/api/inventory/meta")
+@app.get("/inventory/meta")
 def inventory_meta():
     """Return filter options and summary stats for the inventory explorer."""
     return db.inventory_meta()

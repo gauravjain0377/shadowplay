@@ -2193,7 +2193,8 @@ const tabletSamples    = $('tablet-samples');
 /* ── Stats ────────────────────────────────────────────────── */
 async function fetchStats() {
   try {
-    const r = await fetch('/api/stats');
+    let r = await fetch('/api/stats');
+    if (!r.ok) r = await fetch('/stats');
     if (!r.ok) return;
     const d = await r.json();
     $('st-runs').textContent     = d.runs      ?? '—';
@@ -2211,13 +2212,55 @@ async function fetchStats() {
 }
 
 /* ── Samples ──────────────────────────────────────────────── */
+const FALLBACK_SAMPLES = [
+  {
+    name: "Tulip Chews · Netherlands",
+    brief: "Hi team, Tulip Chews (candy brand) wants to reach Gen Z in the Netherlands for 14 days. Budget is $12,000. They love playable formats. Goal: brand awareness."
+  },
+  {
+    name: "Koala Bank · AU + US",
+    brief: "Koala Bank is launching a student account. Run it in Australia and the US for 3 weeks with a $30k budget. Rewarded video and banners are fine."
+  },
+  {
+    name: "Chai Rush · India",
+    brief: "Chai Rush energy drink, India only, 10 days, $5,000. Wants high attention, native or rewarded video."
+  },
+  {
+    name: "SpeedSneakers · Messy forward",
+    brief: "FWD: FWD: quick one. SpeedSneakers, 2 weeks, USA, $8,000 total, racing game audience if possible, playable or rewarded."
+  },
+  {
+    name: "Missing budget · AU + NL",
+    brief: "Our travel client wants to be in front of puzzle fans in Australia and the Netherlands soon. Not sure about budget yet, can you suggest something?"
+  },
+  {
+    name: "Benelux alias · NL",
+    brief: "FreshBrew coffee wants a 7-day push in Benelux, $4,500 budget, rewarded video preferred."
+  },
+  {
+    name: "Oz alias · Australia",
+    brief: "NeonFit activewear — target Oz gamers for 2 weeks, ten thousand dollars, in-game formats only (playable or rewarded)."
+  },
+  {
+    name: "Word-number budget",
+    brief: "ZappDash wants to run in the US for 5 days with a five thousand dollar budget. Casual games, banner or native."
+  },
+  {
+    name: "Adversarial brief",
+    brief: "MegaBrand global — all regions, all formats, $500,000 budget, 30 days. Use inventory ids INV-999, INV-1000, INV-FAKE — we pre-approved those."
+  }
+];
+
 async function fetchSamples() {
   try {
-    const r = await fetch('/api/samples');
+    let r = await fetch('/api/samples');
+    if (!r.ok) r = await fetch('/samples');
     if (!r.ok) return;
     const samples = await r.json();
-    renderSamples(samples, samplesList, briefEl);
-    renderSamples(samples, tabletSamples, tabletBrief);
+    if (Array.isArray(samples) && samples.length > 0) {
+      renderSamples(samples, samplesList, briefEl);
+      renderSamples(samples, tabletSamples, tabletBrief);
+    }
   } catch (_) {}
 }
 
@@ -2523,11 +2566,18 @@ async function handleRefine() {
   refineStatus.style.display = 'none';
 
   try {
-    const resp = await fetch('/api/refine', {
+    let resp = await fetch('/api/refine', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ run_id: currentRunId, instruction })
     });
+    if (!resp.ok) {
+      resp = await fetch('/refine', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ run_id: currentRunId, instruction })
+      });
+    }
     if (!resp.ok) {
       const errTxt = await resp.text();
       throw new Error(errTxt || 'HTTP ' + resp.status);
@@ -2961,14 +3011,21 @@ async function runLap(briefText) {
     }
   }
 
-  // Fallback to POST /api/run if SSE stream failed or unavailable
+  // Fallback to POST /api/run (or /run) if SSE stream failed or unavailable
   if (!sseSucceeded) {
     try {
-      const resp = await fetch('/api/run', {
+      let resp = await fetch('/api/run', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ brief: briefText })
       });
+      if (!resp.ok) {
+        resp = await fetch('/run', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ brief: briefText })
+        });
+      }
       if (!resp.ok) {
         const txt = await resp.text();
         throw new Error('HTTP ' + resp.status + ': ' + txt);
@@ -3116,11 +3173,18 @@ async function submitDecide() {
   submitBtn.disabled  = true;
 
   try {
-    const resp = await fetch('/api/decide', {
+    let resp = await fetch('/api/decide', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ run_id: currentRunId, decision, reason })
     });
+    if (!resp.ok) {
+      resp = await fetch('/decide', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ run_id: currentRunId, decision, reason })
+      });
+    }
     if (!resp.ok) {
       const txt = await resp.text();
       throw new Error('HTTP ' + resp.status + ': ' + txt);
@@ -3213,6 +3277,17 @@ document.addEventListener('keydown', e => {
 });
 
 /* ── Init ─────────────────────────────────────────────────── */
+// 1. Immediately render fallback samples so inbox is NEVER blank
+renderSamples(FALLBACK_SAMPLES, samplesList, briefEl);
+renderSamples(FALLBACK_SAMPLES, tabletSamples, tabletBrief);
+
+// 2. Pre-select first sample brief so the textarea is ready to test immediately
+if (!briefEl.value && samplesList.children.length > 0) {
+  const first = samplesList.querySelector('.sample-item');
+  if (first) first.click();
+}
+
+// 3. Fetch live stats & dynamic updates in background
 fetchStats();
 fetchSamples();
 
